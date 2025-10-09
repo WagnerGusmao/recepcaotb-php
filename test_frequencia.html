@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Frequência</title>
+</head>
+<body>
+    <h1>Teste de Frequência</h1>
+    <button onclick="testarFrequencia()">Testar Busca de Frequência</button>
+    <div id="resultado"></div>
+
+    <script>
+        async function testarFrequencia() {
+            try {
+                console.log('Iniciando teste...');
+                const response = await fetch('http://localhost:3000/api/frequencias');
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Dados recebidos:', data);
+                    document.getElementById('resultado').innerHTML = 
+                        '<h3>Sucesso!</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    console.log('Erro na resposta:', response.statusText);
+                    document.getElementById('resultado').innerHTML = 
+                        '<h3>Erro: ' + response.status + '</h3>';
+                }
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                document.getElementById('resultado').innerHTML = 
+                    '<h3>Erro: ' + error.message + '</h3>';
+            }
+        }
+    </script>
+</body>
+</html>

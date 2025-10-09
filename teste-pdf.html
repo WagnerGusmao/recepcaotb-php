@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Exportação PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        .loading { opacity: 0.7; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Teste de Exportação PDF</h1>
+    
+    <button onclick="exportarPDF(this)">📑 Exportar PDF</button>
+    
+    <div id="relatorioResultado">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Idade</th>
+                    <th>Cidade</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>João Silva</td>
+                    <td>30</td>
+                    <td>São Paulo</td>
+                    <td>joao@email.com</td>
+                </tr>
+                <tr>
+                    <td>Maria Santos</td>
+                    <td>25</td>
+                    <td>Rio de Janeiro</td>
+                    <td>maria@email.com</td>
+                </tr>
+                <tr>
+                    <td>Pedro Costa</td>
+                    <td>35</td>
+                    <td>Belo Horizonte</td>
+                    <td>pedro@email.com</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Função auxiliar de loading
+        function setButtonLoading(button, loading = true) {
+            if (!button) return;
+            
+            if (loading) {
+                button.dataset.originalText = button.innerHTML;
+                button.innerHTML = '⏳ Processando...';
+                button.disabled = true;
+                button.classList.add('loading');
+            } else {
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                }
+                button.disabled = false;
+                button.classList.remove('loading');
+            }
+        }
+
+        // Simular window.relatorioAtual
+        window.relatorioAtual = {
+            tipo: 'Teste de Relatório'
+        };
+
+        function exportarPDF(button) {
+            console.log('🔄 Iniciando exportação PDF...');
+            
+            const tabela = document.querySelector('#relatorioResultado table');
+            if (!tabela) {
+                alert('Nenhum relatório para exportar');
+                console.error('❌ Tabela não encontrada para exportação');
+                return;
+            }
+            
+            console.log('✅ Tabela encontrada:', tabela);
+            setButtonLoading(button, true);
+
+            function gerarPDF() {
+                try {
+                    console.log('📄 Iniciando geração do PDF...');
+                    
+                    // Tentar diferentes formas de acessar jsPDF
+                    let jsPDFClass;
+                    if (window.jsPDF && typeof window.jsPDF.jsPDF === 'function') {
+                        jsPDFClass = window.jsPDF.jsPDF;
+                    } else if (window.jsPDF && typeof window.jsPDF === 'function') {
+                        jsPDFClass = window.jsPDF;
+                    } else if (typeof jsPDF !== 'undefined') {
+                        jsPDFClass = jsPDF;
+                    } else {
+                        throw new Error('jsPDF não encontrado');
+                    }
+                    const doc = new jsPDFClass();
+                    console.log('✅ jsPDF inicializado');
+
+                    // Título do relatório
+                    const titulo = window.relatorioAtual?.tipo || 'Relatório';
+                    doc.setFontSize(16);
+                    doc.text(titulo, 20, 20);
+                    doc.setFontSize(10);
+                    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 20, 30);
+                    console.log('✅ Título adicionado:', titulo);
+
+                    // Extrair dados da tabela
+                    const linhas = [];
+                    const cabecalhos = [];
+                    
+                    // Cabeçalhos
+                    const thElements = tabela.querySelectorAll('thead th');
+                    thElements.forEach(th => cabecalhos.push(th.textContent.trim()));
+                    console.log('✅ Cabeçalhos extraídos:', cabecalhos);
+
+                    // Dados
+                    const dataRows = tabela.querySelectorAll('tbody tr');
+                    dataRows.forEach(tr => {
+                        const linha = [];
+                        const tdElements = tr.querySelectorAll('td');
+                        tdElements.forEach(td => linha.push(td.textContent.trim()));
+                        if (linha.length > 0) linhas.push(linha);
+                    });
+                    console.log('✅ Dados extraídos:', linhas.length, 'linhas');
+
+                    // Verificar se autoTable está disponível
+                    if (!doc.autoTable) {
+                        throw new Error('Plugin autoTable não foi carregado');
+                    }
+
+                    // Gerar tabela no PDF
+                    doc.autoTable({
+                        head: [cabecalhos],
+                        body: linhas,
+                        startY: 40,
+                        styles: { fontSize: 10, cellPadding: 3 },
+                        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                        margin: { top: 40, left: 10, right: 10 }
+                    });
+                    console.log('✅ Tabela gerada no PDF');
+
+                    // Salvar PDF
+                    const nomeArquivo = `teste_relatorio_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(nomeArquivo);
+                    console.log('✅ PDF salvo:', nomeArquivo);
+                    
+                    alert('PDF gerado com sucesso!');
+                    
+                    // Desabilitar loading após salvar
+                    setTimeout(() => {
+                        setButtonLoading(button, false);
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Erro na geração do PDF:', error);
+                    alert('Erro ao gerar PDF: ' + error.message);
+                    setButtonLoading(button, false);
+                }
+            }
+
+            // Verificar se jsPDF está disponível
+            if (typeof window.jsPDF === 'undefined') {
+                console.log('📦 Carregando bibliotecas jsPDF...');
+                
+                // Carregar jsPDF dinamicamente
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = () => {
+                    console.log('✅ jsPDF carregado');
+                    const autoTableScript = document.createElement('script');
+                    autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+                    autoTableScript.onload = () => {
+                        console.log('✅ AutoTable carregado');
+                        gerarPDF();
+                    };
+                    autoTableScript.onerror = (error) => {
+                        console.error('❌ Erro ao carregar AutoTable:', error);
+                        alert('Erro ao carregar biblioteca de tabelas PDF');
+                        setButtonLoading(button, false);
+                    };
+                    document.head.appendChild(autoTableScript);
+                };
+                script.onerror = (error) => {
+                    console.error('❌ Erro ao carregar jsPDF:', error);
+                    alert('Erro ao carregar biblioteca de PDF');
+                    setButtonLoading(button, false);
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('✅ jsPDF já disponível');
+                gerarPDF();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,28 +1,6 @@
-# Node modules
 node_modules/
-npm-debug.log*
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Environment variables
-.env
-.env.local
-
-# IDE files
-.vscode/
-.idea/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
 *.log
-
-# Temporary files
-tmp/
-temp/
+.env
+.DS_Store
+backend/frequencia.db
+*.tmp

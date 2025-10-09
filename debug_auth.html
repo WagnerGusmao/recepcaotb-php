@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Autenticação</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .info { background: #f0f8ff; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #e6ffe6; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Debug de Autenticação - Sistema Terra do Bugio</h1>
+    
+    <div class="info">
+        <h3>Status da Autenticação</h3>
+        <p><strong>Token no localStorage:</strong> <span id="tokenStatus"></span></p>
+        <p><strong>Usuário no localStorage:</strong> <span id="userStatus"></span></p>
+        <p><strong>Tipo de usuário:</strong> <span id="userType"></span></p>
+    </div>
+    
+    <div>
+        <button onclick="testarAPI()">Testar API de Duplicatas</button>
+        <button onclick="testarStats()">Testar Stats</button>
+        <button onclick="limparStorage()">Limpar Storage</button>
+        <button onclick="irParaLogin()">Ir para Login</button>
+    </div>
+    
+    <div id="resultados"></div>
+    
+    <script>
+        // Verificar status da autenticação
+        function verificarAuth() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            
+            document.getElementById('tokenStatus').textContent = token ? 'Presente' : 'Ausente';
+            document.getElementById('userStatus').textContent = user.id ? `${user.nome} (${user.email})` : 'Ausente';
+            document.getElementById('userType').textContent = user.tipo || 'N/A';
+            
+            if (token) {
+                document.getElementById('tokenStatus').textContent += ` (${token.substring(0, 10)}...)`;
+            }
+        }
+        
+        // Testar API de duplicatas
+        async function testarAPI() {
+            const resultados = document.getElementById('resultados');
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                resultados.innerHTML = '<div class="error"><h3>Erro</h3><p>Token não encontrado no localStorage</p></div>';
+                return;
+            }
+            
+            try {
+                resultados.innerHTML = '<div class="info"><h3>Testando API...</h3><p>Fazendo requisição para /api/duplicatas...</p></div>';
+                
+                const response = await fetch('http://localhost:3000/api/duplicatas?threshold=0.9', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultados.innerHTML = `
+                        <div class="success">
+                            <h3>✅ API Funcionando</h3>
+                            <p>Status: ${response.status}</p>
+                            <p>Total de grupos: ${data.total_grupos || 0}</p>
+                            <p>Cache usado: ${data.cache_usado ? 'Sim' : 'Não'}</p>
+                        </div>
+                    `;
+                } else {
+                    resultados.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Erro na API</h3>
+                            <p>Status: ${response.status}</p>
+                            <p>Erro: ${data.error}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultados.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erro de Conexão</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Testar stats
+        async function testarStats() {
+            const resultados = document.getElementById('resultados');
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                resultados.innerHTML = '<div class="error"><h3>Erro</h3><p>Token não encontrado no localStorage</p></div>';
+                return;
+            }
+            
+            try {
+                resultados.innerHTML = '<div class="info"><h3>Testando Stats...</h3><p>Fazendo requisição para /api/duplicatas/stats...</p></div>';
+                
+                const response = await fetch('http://localhost:3000/api/duplicatas/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultados.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Stats Funcionando</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultados.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Erro nas Stats</h3>
+                            <p>Status: ${response.status}</p>
+                            <p>Erro: ${data.error}</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultados.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erro de Conexão</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Limpar storage
+        function limparStorage() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            verificarAuth();
+            document.getElementById('resultados').innerHTML = '<div class="info"><h3>Storage Limpo</h3><p>Token e dados do usuário removidos</p></div>';
+        }
+        
+        // Ir para login
+        function irParaLogin() {
+            window.location.href = 'login.html';
+        }
+        
+        // Verificar ao carregar a página
+        verificarAuth();
+    </script>
+</body>
+</html>

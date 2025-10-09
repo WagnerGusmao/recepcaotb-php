@@ -1,0 +1,2938 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Sistema de Frequência</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/script.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+        .header { background: #007bff; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .header h1 { margin: 0; font-size: 1.5rem; }
+        .menu { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
+        .menu-btn { padding: 8px 15px; background: #f8f9fa; border: 1px solid #ddd; cursor: pointer; border-radius: 5px; font-size: 0.9rem; }
+        .menu-btn.active { background: #007bff; color: white; }
+        .section { display: none; }
+        .section.active { display: block; }
+        input, select, button { padding: 8px; margin: 5px; border-radius: 3px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; white-space: nowrap; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        th { background: #f8f9fa; }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            body { padding: 5px; }
+            .header { padding: 10px; }
+            .header h1 { font-size: 1.2rem; }
+            .menu { gap: 3px; }
+            .menu-btn { padding: 6px 10px; font-size: 0.8rem; }
+            input, select, button { padding: 6px; margin: 3px; font-size: 0.9rem; }
+            th, td { padding: 6px; font-size: 0.85rem; }
+            table { font-size: 0.8rem; }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1rem; }
+            .menu { flex-direction: column; }
+            .menu-btn { width: 100%; text-align: center; }
+            input, select, button { width: 100%; margin: 2px 0; }
+            th, td { padding: 4px; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Painel do Sistema</h1>
+        <span id="userInfo"></span>
+        <button onclick="logout()" style="float: right; background: #dc3545; color: white; border: none; padding: 8px 15px;">Sair</button>
+    </div>
+
+    <div class="menu">
+        <button class="menu-btn active" onclick="showSection('frequencia')">📝 Frequência</button>
+        <button class="menu-btn" onclick="showSection('relatorios')">📊 Relatórios</button>
+        <button class="menu-btn" onclick="showSection('usuarios')">👥 Usuários</button>
+        <button class="menu-btn" onclick="showSection('duplicatas')">🔍 Duplicatas</button>
+        <button class="menu-btn" onclick="showSection('perfil')">👤 Meu Perfil</button>
+    </div>
+
+    <!-- Seção Frequência -->
+    <div id="frequencia" class="section active">
+        <h2>📝 Lançar Frequência</h2>
+        <input type="text" id="buscaPessoa" placeholder="Buscar por nome ou CPF" style="width: 300px;">
+        <div id="resultadoBusca"></div>
+        
+        <div id="formFrequencia" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa;">
+            <h3>Dados da Pessoa</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="editNome" placeholder="Nome completo">
+                <input type="text" id="editCpf" placeholder="CPF">
+                <input type="date" id="editNascimento" placeholder="Data de nascimento">
+                <select id="editReligiao">
+                    <option value="">Religião</option>
+                    <option value="Católica">Católica</option>
+                    <option value="Evangélica">Evangélica</option>
+                    <option value="Espírita">Espírita</option>
+                    <option value="Espiritualista Livre">Espiritualista Livre</option>
+                    <option value="Umbanda">Umbanda</option>
+                    <option value="Candomblé">Candomblé</option>
+                    <option value="Budista">Budista</option>
+                    <option value="Judaica">Judaica</option>
+                    <option value="Islâmica">Islâmica</option>
+                    <option value="Agnóstica">Agnóstica</option>
+                    <option value="Ateia">Ateia</option>
+                    <option value="Outras">Outras</option>
+                    <option value="Não informar">Não informar</option>
+                </select>
+                <input type="text" id="editCidade" placeholder="Cidade">
+                <select id="editEstado">
+                    <option value="">Estado</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="RJ">Rio de Janeiro</option>
+                    <option value="MG">Minas Gerais</option>
+                    <option value="PR">Paraná</option>
+                    <option value="SC">Santa Catarina</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="BA">Bahia</option>
+                    <option value="GO">Goiás</option>
+                    <option value="DF">Distrito Federal</option>
+                    <option value="ES">Espírito Santo</option>
+                    <option value="MT">Mato Grosso</option>
+                    <option value="MS">Mato Grosso do Sul</option>
+                    <option value="PE">Pernambuco</option>
+                    <option value="CE">Ceará</option>
+                    <option value="PA">Pará</option>
+                    <option value="AM">Amazonas</option>
+                    <option value="RO">Rondônia</option>
+                    <option value="AC">Acre</option>
+                    <option value="RR">Roraima</option>
+                    <option value="AP">Amapá</option>
+                    <option value="TO">Tocantins</option>
+                    <option value="MA">Maranhão</option>
+                    <option value="PI">Piauí</option>
+                    <option value="AL">Alagoas</option>
+                    <option value="SE">Sergipe</option>
+                    <option value="PB">Paraíba</option>
+                    <option value="RN">Rio Grande do Norte</option>
+                </select>
+                <input type="tel" id="editTelefone" placeholder="Telefone">
+                <input type="email" id="editEmail" placeholder="E-mail">
+                <textarea id="editObservacao" placeholder="Observações" rows="3"></textarea>
+            </div>
+            <button onclick="atualizarPessoa(this)" style="background: #28a745; color: white; margin-bottom: 20px;">Atualizar Dados</button>
+            
+            <h3>Registrar Frequência</h3>
+            <div style="margin-bottom: 10px;">
+                <label><input type="radio" name="tipo" value="comum" onchange="toggleCamposPet()"> Comum</label>
+                <label><input type="radio" name="tipo" value="hospital" onchange="toggleCamposPet()"> Hospital</label>
+                <label><input type="radio" name="tipo" value="hospital_acompanhante" onchange="toggleCamposPet()"> Hospital Acompanhante</label>
+                <label><input type="radio" name="tipo" value="crianca" onchange="toggleCamposPet()"> Criança</label>
+                <label><input type="radio" name="tipo" value="pet" onchange="toggleCamposPet()"> Pet</label>
+            </div>
+            
+            <!-- Campos normais (para todos os tipos exceto pet) -->
+            <div id="camposNormais">
+                <input type="number" id="numeroSenha" placeholder="Número da senha" min="1">
+            </div>
+            
+            <!-- Campos específicos para pet -->
+            <div id="camposPet" style="display: none;">
+                <input type="number" id="numeroSenhaTutor" placeholder="Número da senha do tutor" min="1">
+                <input type="number" id="numeroSenhaPet" placeholder="Número da senha do pet" min="1">
+            </div>
+            
+            <input type="date" id="dataFrequencia">
+            <button onclick="marcarFrequencia(this)">Marcar Frequência</button>
+        </div>
+    </div>
+
+    <!-- Seção Relatórios -->
+    <div id="relatorios" class="section">
+        <h2>📊 Relatórios</h2>
+        <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 15px;">
+                <input type="date" id="dataInicio" placeholder="Data início">
+                <input type="date" id="dataFim" placeholder="Data fim">
+                <select id="filtroTipo">
+                    <option value="">Todos os tipos</option>
+                    <option value="comum">Comum</option>
+                    <option value="hospital">Hospital</option>
+                    <option value="hospital_acompanhante">Hospital Acompanhante</option>
+                    <option value="crianca">Criança</option>
+                    <option value="pet">Pet</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="gerarRelatorio(this)" style="background: #007bff; color: white; margin-right: 10px;">Relatório Geral</button>
+                <button onclick="gerarRelatorioMensal(this)" style="background: #ffc107; color: black; margin-right: 10px;">Relatório Mensal</button>
+                <button onclick="gerarRelatorioPessoasCidades(this)" style="background: #6f42c1; color: white; margin-right: 10px;">Pessoas por Cidade</button>
+                <button onclick="gerarRelatorioContatos(this)" style="background: #28a745; color: white; margin-right: 10px;">Relatório de Contatos</button>
+                <button onclick="gerarRelatorioCadastros(this)" style="background: #fd7e14; color: white; margin-right: 10px;">Relatório de Cadastros</button>
+            </div>
+            <div style="margin-top: 15px; display: none;" id="botoesExportacao">
+                <strong>📤 Exportar:</strong>
+                <button onclick="exportarCSV(this)" style="background: #17a2b8; color: white; margin: 0 5px; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;">📄 CSV</button>
+                <button onclick="exportarPDF(this)" style="background: #dc3545; color: white; margin: 0 5px; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;">📑 PDF</button>
+                <button onclick="exportarXLSX(this)" style="background: #28a745; color: white; margin: 0 5px; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;">📊 XLSX</button>
+            </div>
+        </div>
+        <div id="relatorioResultado"></div>
+    </div>
+
+    <!-- Seção Usuários -->
+    <div id="usuarios" class="section">
+        <h2>👥 Gerenciar Usuários</h2>
+        <button onclick="mostrarModalNovoUsuario(this)">Novo Usuário</button>
+        <div id="usuariosLista"></div>
+    </div>
+
+    <!-- Modal Novo Usuário -->
+    <div id="modalNovoUsuario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #007bff;">👤 Cadastrar Novo Usuário</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome:</label>
+                <input type="text" id="novoUsuarioNome" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="Nome completo">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">E-mail:</label>
+                <input type="email" id="novoUsuarioEmail" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="email@exemplo.com">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Senha:</label>
+                <input type="password" id="novoUsuarioSenha" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="Senha segura">
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Tipo de Usuário:</label>
+                
+                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="tipoUsuario" value="geral" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #28a745;">👤 GERAL</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ Lançar frequências<br>
+                                    ✅ Atualizar dados de pessoas<br>
+                                    ❌ Não acessa relatórios<br>
+                                    ❌ Não gerencia usuários
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="tipoUsuario" value="responsavel" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #ffc107;">👨‍💼 RESPONSÁVEL</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ Lançar frequências<br>
+                                    ✅ Atualizar dados de pessoas<br>
+                                    ✅ <strong>Acessar relatórios</strong><br>
+                                    ❌ Não gerencia usuários
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="tipoUsuario" value="administrador" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #dc3545;">👑 ADMINISTRADOR</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ Lançar frequências<br>
+                                    ✅ Atualizar dados de pessoas<br>
+                                    ✅ <strong>Acessar relatórios</strong><br>
+                                    ✅ <strong>Gerenciar usuários</strong>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="fecharModalNovoUsuario()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
+                <button onclick="salvarNovoUsuario()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Criar Usuário</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção Meu Perfil -->
+    <div id="perfil" class="section">
+        <h2>👤 Meu Perfil</h2>
+        
+        <div style="max-width: 600px; margin: 0 auto;">
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: #007bff;">📋 Informações da Conta</h3>
+                
+                <form id="formPerfil">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome:</label>
+                        <input type="text" id="perfilNome" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" required>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">E-mail:</label>
+                        <input type="email" id="perfilEmail" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" required>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Usuário:</label>
+                        <input type="text" id="perfilTipo" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #e9ecef;" readonly>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" style="flex: 1; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                            💾 Salvar Alterações
+                        </button>
+                        <button type="button" onclick="cancelarEdicaoPerfil()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            ❌ Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px;">
+                <h3 style="margin-top: 0; color: #856404;">🔐 Alterar Senha</h3>
+                
+                <form id="formSenha">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Senha Atual:</label>
+                        <input type="password" id="senhaAtual" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nova Senha:</label>
+                        <input type="password" id="novaSenha" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Confirmar Nova Senha:</label>
+                        <input type="password" id="confirmarNovaSenha" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px; color: #6c757d;">
+                        <strong>Dica:</strong> Deixe os campos de senha em branco se não quiser alterá-la.
+                    </div>
+                    
+                    <button type="submit" style="width: 100%; padding: 12px; background: #ffc107; color: #000; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                        🔑 Alterar Senha
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção Duplicatas -->
+    <div id="duplicatas" class="section">
+        <h2>🔍 Gerenciar Duplicatas</h2>
+        
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: #856404;">⚠️ Análise de Duplicatas</h3>
+                <p>Esta ferramenta identifica pessoas com nomes similares que podem ser duplicatas. <strong>Revise cuidadosamente antes de mesclar!</strong></p>
+                <p style="margin-bottom: 0; font-size: 14px; color: #856404;"><strong>💡 Dica:</strong> Após realizar mesclagens, execute uma nova análise para ver os resultados atualizados.</p>
+                
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                    <label>
+                        <strong>Limiar de Similaridade:</strong>
+                        <select id="thresholdSimilaridade" style="margin-left: 10px; padding: 5px;">
+                            <option value="0.95">95% - Muito restritivo</option>
+                            <option value="0.90">90% - Restritivo</option>
+                            <option value="0.85" selected>85% - Padrão</option>
+                            <option value="0.80">80% - Flexível</option>
+                            <option value="0.75">75% - Muito flexível</option>
+                        </select>
+                    </label>
+                    <button onclick="analisarDuplicatas(this)" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        🔍 Analisar Duplicatas
+                    </button>
+                </div>
+            </div>
+            
+            <div id="resultadoDuplicatas" style="display: none;">
+                <div id="resumoDuplicatas" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;"></div>
+                <div id="listaDuplicatas"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Mesclagem -->
+    <div id="modalMesclagem" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #dc3545;">⚠️ Confirmar Mesclagem de Cadastros</h3>
+            
+            <div id="conteudoMesclagem"></div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="fecharModalMesclagem()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
+                <button onclick="confirmarMesclagem()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">🔄 Confirmar Mesclagem</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let token = localStorage.getItem('token');
+        let user = JSON.parse(localStorage.getItem('user') || '{}');
+        let pessoaSelecionada = null;
+        
+        // Funções auxiliares para loading nos botões
+        function setButtonLoading(button, loading = true) {
+            if (typeof button === 'string') {
+                button = document.querySelector(button);
+            }
+            
+            if (!button) return;
+            
+            if (loading) {
+                button.dataset.originalText = button.innerHTML;
+                button.dataset.originalDisabled = button.disabled;
+                button.innerHTML = '⏳ Processando...';
+                button.disabled = true;
+                button.style.opacity = '0.7';
+                button.style.cursor = 'not-allowed';
+            } else {
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                }
+                button.disabled = button.dataset.originalDisabled === 'true';
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+            }
+        }
+        
+        function withButtonLoading(buttonSelector, asyncFunction) {
+            return async function(...args) {
+                const button = typeof buttonSelector === 'string' ? 
+                    document.querySelector(buttonSelector) : buttonSelector;
+                
+                try {
+                    setButtonLoading(button, true);
+                    await asyncFunction.apply(this, args);
+                } finally {
+                    setButtonLoading(button, false);
+                }
+            };
+        }
+
+        // Função para alternar campos de pet
+        function toggleCamposPet() {
+            const tipoSelecionado = document.querySelector('input[name="tipo"]:checked')?.value;
+            const camposNormais = document.getElementById('camposNormais');
+            const camposPet = document.getElementById('camposPet');
+            
+            if (tipoSelecionado === 'pet') {
+                camposNormais.style.display = 'none';
+                camposPet.style.display = 'block';
+                // Limpar campo normal
+                document.getElementById('numeroSenha').value = '';
+            } else {
+                camposNormais.style.display = 'block';
+                camposPet.style.display = 'none';
+                // Limpar campos de pet
+                document.getElementById('numeroSenhaTutor').value = '';
+                document.getElementById('numeroSenhaPet').value = '';
+            }
+        }
+
+        // Verificar autenticação
+        if (!token || !user.id) {
+            window.location.href = 'login.html';
+        }
+        
+        // Verificar se precisa trocar senha
+        if (user.deve_trocar_senha) {
+            window.location.href = 'trocar-senha.html';
+        }
+
+        // Mostrar info do usuário
+        document.getElementById('userInfo').textContent = `${user.nome} (${user.tipo})`;
+
+        // Definir data atual
+        document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+
+        // Função para mostrar seções
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (sectionId === 'usuarios' && user.tipo === 'administrador') {
+                carregarUsuarios();
+            } else if (sectionId === 'perfil') {
+                carregarPerfil();
+            } else if (sectionId === 'duplicatas' && user.tipo === 'administrador') {
+                // Seção de duplicatas carregada, mas análise só executa quando usuário clicar
+                console.log('Seção de duplicatas carregada para administrador');
+            }
+        }
+
+        // Buscar pessoas
+        let timeoutBusca;
+        let pessoasEncontradas = []; // Armazenar resultados da busca
+        
+        document.getElementById('buscaPessoa').addEventListener('input', function() {
+            clearTimeout(timeoutBusca);
+            timeoutBusca = setTimeout(buscarPessoas, 300);
+        });
+
+        async function buscarPessoas() {
+            const termo = document.getElementById('buscaPessoa').value;
+            const resultado = document.getElementById('resultadoBusca');
+            
+            console.log('Buscando por:', termo);
+            
+            if (termo.length < 2) {
+                resultado.innerHTML = '';
+                return;
+            }
+            
+            resultado.innerHTML = '<p style="padding: 10px; color: #666;">Buscando...</p>';
+            
+            try {
+                const url = `http://localhost:3000/api/pessoas?busca=${encodeURIComponent(termo)}`;
+                console.log('URL:', url);
+                
+                const response = await fetch(url);
+                console.log('Status da resposta:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const pessoas = await response.json();
+                console.log('Pessoas encontradas:', pessoas.length);
+                
+                // Armazenar resultados para uso posterior
+                pessoasEncontradas = pessoas;
+                
+                if (pessoas.length === 0) {
+                    resultado.innerHTML = '<p style="padding: 10px; color: #666;">Nenhuma pessoa encontrada</p>';
+                    return;
+                }
+                
+                resultado.innerHTML = pessoas.slice(0, 10).map((p, index) => `
+                    <div onclick="selecionarPessoa(${index})" style="padding: 10px; border: 1px solid #ddd; margin: 2px 0; cursor: pointer; background: white;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='white'">
+                        <strong>${p.nome}</strong><br>
+                        <small>CPF: ${p.cpf || 'N/A'} | ${p.cidade || 'N/A'}/${p.estado || 'N/A'}</small>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erro na busca:', error);
+                resultado.innerHTML = `<p style="color: red; padding: 10px;">Erro: ${error.message}<br><small>Verifique se o servidor está rodando</small></p>`;
+            }
+        }
+
+        function selecionarPessoa(index) {
+            console.log('Selecionando pessoa índice:', index);
+            
+            if (index >= 0 && index < pessoasEncontradas.length) {
+                const pessoa = pessoasEncontradas[index];
+                console.log('Pessoa selecionada:', pessoa);
+                
+                pessoaSelecionada = pessoa;
+                
+                // Preencher campos de edição
+                document.getElementById('editNome').value = pessoa.nome || '';
+                document.getElementById('editCpf').value = pessoa.cpf || '';
+                document.getElementById('editNascimento').value = pessoa.nascimento || '';
+                document.getElementById('editReligiao').value = pessoa.religiao || '';
+                document.getElementById('editCidade').value = pessoa.cidade || '';
+                document.getElementById('editEstado').value = pessoa.estado || '';
+                document.getElementById('editTelefone').value = pessoa.telefone || '';
+                document.getElementById('editEmail').value = pessoa.email || '';
+                
+                // Mostrar formulário
+                document.getElementById('formFrequencia').style.display = 'block';
+                document.getElementById('resultadoBusca').innerHTML = '';
+                document.getElementById('buscaPessoa').value = pessoa.nome;
+                
+                console.log('Formulário exibido com sucesso');
+            } else {
+                console.error('Pessoa não encontrada no índice:', index);
+                alert('Erro ao selecionar pessoa');
+            }
+        }
+
+        async function marcarFrequencia(button) {
+            if (!pessoaSelecionada) {
+                alert('Selecione uma pessoa');
+                return;
+            }
+            
+            const tipo = document.querySelector('input[name="tipo"]:checked')?.value;
+            const data = document.getElementById('dataFrequencia').value;
+            
+            if (!tipo || !data) {
+                alert('Selecione o tipo de frequência e a data');
+                return;
+            }
+            
+            // Preparar dados da frequência baseado no tipo
+            let dadosFrequencia = {
+                pessoaId: pessoaSelecionada.id,
+                tipo,
+                data
+            };
+            
+            if (tipo === 'pet') {
+                // Para pet, precisamos das duas senhas
+                const numeroSenhaTutor = document.getElementById('numeroSenhaTutor').value;
+                const numeroSenhaPet = document.getElementById('numeroSenhaPet').value;
+                
+                if (!numeroSenhaTutor || !numeroSenhaPet) {
+                    alert('Para tipo Pet, preencha ambas as senhas (tutor e pet)');
+                    return;
+                }
+                
+                dadosFrequencia.numeroSenhaTutor = numeroSenhaTutor;
+                dadosFrequencia.numeroSenhaPet = numeroSenhaPet;
+                dadosFrequencia.numeroSenha = `${numeroSenhaTutor}/${numeroSenhaPet}`; // Para compatibilidade com backend
+            } else {
+                // Para outros tipos, usar campo normal
+                const numeroSenha = document.getElementById('numeroSenha').value;
+                
+                if (!numeroSenha) {
+                    alert('Preencha o número da senha');
+                    return;
+                }
+                
+                dadosFrequencia.numeroSenha = numeroSenha;
+            }
+            
+            setButtonLoading(button, true);
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/frequencias', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosFrequencia)
+                });
+                
+                if (response.ok) {
+                    // Criar div de notificação personalizada
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '✅ Frequência registrada com sucesso!';
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 1000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover após 4 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                    limparFormulario();
+                } else {
+                    alert('Erro ao registrar frequência');
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        function limparFormulario() {
+            document.getElementById('formFrequencia').style.display = 'none';
+            document.getElementById('buscaPessoa').value = '';
+            pessoaSelecionada = null;
+            
+            // Limpar campos de edição
+            document.getElementById('editNome').value = '';
+            document.getElementById('editCpf').value = '';
+            document.getElementById('editNascimento').value = '';
+            document.getElementById('editReligiao').value = '';
+            document.getElementById('editCidade').value = '';
+            document.getElementById('editEstado').value = '';
+            document.getElementById('editTelefone').value = '';
+            document.getElementById('editEmail').value = '';
+            
+            // Limpar campos de frequência
+            document.querySelectorAll('input[name="tipo"]').forEach(r => r.checked = false);
+            document.getElementById('numeroSenha').value = '';
+            document.getElementById('numeroSenhaTutor').value = '';
+            document.getElementById('numeroSenhaPet').value = '';
+            document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+            
+            // Resetar visibilidade dos campos
+            document.getElementById('camposNormais').style.display = 'block';
+            document.getElementById('camposPet').style.display = 'none';
+        }
+
+        async function gerarRelatorio(button) {
+            setButtonLoading(button, true);
+            
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const tipo = document.getElementById('filtroTipo').value;
+            
+            let url = 'http://localhost:3000/api/frequencias?';
+            if (dataInicio) url += `dataInicio=${dataInicio}&`;
+            if (dataFim) url += `dataFim=${dataFim}&`;
+            if (tipo) url += `tipo=${tipo}&`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const frequencias = await response.json();
+                
+                // Calcular estatísticas
+                const tipoStats = {};
+                const pessoasUnicas = new Set();
+                
+                frequencias.forEach(f => {
+                    // Normalizar tipo para evitar duplicatas
+                    const tipoNormalizado = f.tipo.toLowerCase().trim();
+                    tipoStats[tipoNormalizado] = (tipoStats[tipoNormalizado] || 0) + 1;
+                    pessoasUnicas.add(f.pessoa_id);
+                });
+                
+                // Usar período selecionado pelo usuário, não das frequências retornadas
+                let periodo = 'Período completo';
+                if (dataInicio && dataFim) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    periodo = `${dataInicioFormatada} a ${dataFimFormatada}`;
+                } else if (dataInicio) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    periodo = `A partir de ${dataInicioFormatada}`;
+                } else if (dataFim) {
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    periodo = `Até ${dataFimFormatada}`;
+                }
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <h3>📋 Relatório Geral</h3>
+                    
+                    <!-- Resumo Estatístico -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; color: #007bff;">📊 Resumo Estatístico</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #007bff;">
+                                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${frequencias.length}</div>
+                                <div style="color: #666;">Total de Frequências</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #28a745;">
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${pessoasUnicas.size}</div>
+                                <div style="color: #666;">Pessoas Diferentes</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #ffc107;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${(frequencias.length / pessoasUnicas.size).toFixed(1)}</div>
+                                <div style="color: #666;">Frequências por Pessoa</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <strong>📅 Período Selecionado:</strong> ${periodo}
+                            ${frequencias.length === 0 ? '<br><span style="color: #dc3545; font-size: 14px;">⚠️ Nenhuma frequência encontrada no período selecionado</span>' : ''}
+                        </div>
+                        
+                        <div>
+                            <strong>📈 Por Tipo de Presença:</strong>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;">
+                                ${Object.entries(tipoStats).map(([tipo, count]) => `
+                                    <span style="background: ${getTipoColor(tipo)}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                                        ${tipo.toUpperCase().replace('_', ' ')}: ${count}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabela Detalhada -->
+                    <h4>📋 Registros Detalhados (${frequencias.length} registros)</h4>
+                    <table>
+                        <thead>
+                            <tr style="background: #007bff; color: white;">
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Senha</th>
+                                <th>Data</th>
+                                <th>Registrado em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${frequencias.map(f => `
+                                <tr>
+                                    <td>${f.nome}</td>
+                                    <td><span style="background: ${getTipoColor(f.tipo.toLowerCase())}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">${f.tipo.toUpperCase().replace('_', ' ')}</span></td>
+                                    <td>${f.numero_senha}</td>
+                                    <td>${new Date(f.data).toLocaleDateString('pt-BR')}</td>
+                                    <td>${new Date(f.created_at).toLocaleString('pt-BR')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('botoesExportacao').style.display = 'block';
+                // Armazenar dados do relatório atual para exportação
+                window.relatorioAtual = {
+                    tipo: 'Relatório Geral',
+                    dados: frequencias,
+                    filtros: { dataInicio, dataFim, tipo }
+                };
+            } catch (error) {
+                document.getElementById('relatorioResultado').innerHTML = '<p style="color: red;">Erro ao gerar relatório</p>';
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        async function gerarRelatorioMensal(button) {
+            setButtonLoading(button, true);
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/frequencias', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const frequencias = await response.json();
+                
+                // Agrupar por mês/ano (apenas ano corrente)
+                const anoCorrente = new Date().getFullYear();
+                const mesStats = {};
+                
+                // Inicializar todos os meses do ano corrente
+                for (let mes = 1; mes <= 12; mes++) {
+                    const mesAno = `${String(mes).padStart(2, '0')}/${anoCorrente}`;
+                    mesStats[mesAno] = { total: 0, tipos: {}, pessoas: new Set() };
+                }
+                
+                frequencias.forEach(f => {
+                    const data = new Date(f.data);
+                    
+                    // Filtrar apenas o ano corrente
+                    if (data.getFullYear() === anoCorrente) {
+                        const mesAno = `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+                        
+                        mesStats[mesAno].total++;
+                        mesStats[mesAno].tipos[f.tipo] = (mesStats[mesAno].tipos[f.tipo] || 0) + 1;
+                        mesStats[mesAno].pessoas.add(f.pessoa_id);
+                    }
+                });
+                
+                const meses = Object.entries(mesStats)
+                    .sort((a, b) => {
+                        const [mesA] = a[0].split('/');
+                        const [mesB] = b[0].split('/');
+                        return parseInt(mesA) - parseInt(mesB);
+                    });
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <h3>📅 Relatório Mensal ${anoCorrente} (${meses.length} meses)</h3>
+                    <table>
+                        <thead>
+                            <tr style="background: #ffc107; color: black;">
+                                <th>Mês/Ano</th>
+                                <th>Total</th>
+                                <th>Pessoas</th>
+                                <th>Comum</th>
+                                <th>Hospital</th>
+                                <th>Acompanhante</th>
+                                <th>Criança</th>
+                                <th>Pet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${meses.map(([mes, stats]) => `
+                                <tr>
+                                    <td style="font-weight: bold;">${mes}</td>
+                                    <td style="text-align: center; font-weight: bold;">${stats.total}</td>
+                                    <td style="text-align: center;">${stats.pessoas.size}</td>
+                                    <td style="text-align: center;">${stats.tipos.comum || 0}</td>
+                                    <td style="text-align: center;">${stats.tipos.hospital || 0}</td>
+                                    <td style="text-align: center;">${stats.tipos.hospital_acompanhante || 0}</td>
+                                    <td style="text-align: center;">${stats.tipos.crianca || 0}</td>
+                                    <td style="text-align: center;">${(stats.tipos.pet_tutor || 0) + (stats.tipos.pet_animal || 0) + (stats.tipos.pet || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('botoesExportacao').style.display = 'block';
+                // Armazenar dados do relatório atual para exportação
+                window.relatorioAtual = {
+                    tipo: 'Relatório Mensal',
+                    dados: frequencias,
+                    filtros: {}
+                };
+            } catch (error) {
+                document.getElementById('relatorioResultado').innerHTML = '<p style="color: red;">Erro ao gerar relatório mensal</p>';
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        function getTipoColor(tipo) {
+            const colors = {
+                'comum': '#28a745',
+                'hospital': '#dc3545',
+                'hospital_acompanhante': '#ffc107',
+                'crianca': '#17a2b8',
+                'pet': '#6f42c1',
+                'pet_tutor': '#6f42c1',
+                'pet_animal': '#fd7e14'
+            };
+            return colors[tipo] || '#6c757d';
+        }
+
+        function normalizarCidade(cidade) {
+            if (!cidade) return cidade;
+            return cidade
+                .replace(/S\?o/g, 'São')
+                .replace(/S\?O/g, 'SÃO')
+                .replace(/a\?o/g, 'ão')
+                .replace(/A\?O/g, 'ÃO');
+        }
+
+        async function gerarRelatorioContatos(button) {
+            setButtonLoading(button, true);
+            try {
+                // Usar os mesmos filtros de data dos outros relatórios
+                const dataInicio = document.getElementById('dataInicio').value;
+                const dataFim = document.getElementById('dataFim').value;
+                const tipo = document.getElementById('filtroTipo').value;
+                
+                let url = 'http://localhost:3000/api/frequencias?';
+                if (dataInicio) url += `dataInicio=${dataInicio}&`;
+                if (dataFim) url += `dataFim=${dataFim}&`;
+                if (tipo) url += `tipo=${tipo}&`;
+                
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const frequencias = await response.json();
+                
+                // Agrupar por pessoa para evitar duplicatas
+                const pessoasUnicas = new Map();
+                
+                frequencias.forEach(f => {
+                    if (!pessoasUnicas.has(f.pessoa_id)) {
+                        pessoasUnicas.set(f.pessoa_id, {
+                            nome: f.nome,
+                            telefone: f.telefone || 'Não informado',
+                            email: f.email || 'Não informado',
+                            tipos: new Set()
+                        });
+                    }
+                    pessoasUnicas.get(f.pessoa_id).tipos.add(f.tipo);
+                });
+                
+                // Converter para array e ordenar por nome
+                const pessoas = Array.from(pessoasUnicas.values())
+                    .map(p => ({
+                        ...p,
+                        tiposAtendimento: Array.from(p.tipos).join(', ')
+                    }))
+                    .sort((a, b) => a.nome.localeCompare(b.nome));
+                
+                // Criar título com período selecionado
+                let tituloPeriodo = '';
+                if (dataInicio && dataFim) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (${dataInicioFormatada} a ${dataFimFormatada})`;
+                } else if (dataInicio) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (a partir de ${dataInicioFormatada})`;
+                } else if (dataFim) {
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (até ${dataFimFormatada})`;
+                }
+                
+                let tituloTipo = '';
+                if (tipo) {
+                    tituloTipo = ` - Tipo: ${tipo.toUpperCase().replace('_', ' ')}`;
+                }
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <h3>📞 Relatório de Contatos${tituloPeriodo}${tituloTipo}</h3>
+                    
+                    <!-- Resumo Estatístico -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; color: #28a745;">📊 Resumo</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #28a745;">
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${pessoas.length}</div>
+                                <div style="color: #666;">Pessoas Únicas</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #007bff;">
+                                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${frequencias.length}</div>
+                                <div style="color: #666;">Total de Frequências</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #ffc107;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${pessoas.filter(p => p.telefone !== 'Não informado').length}</div>
+                                <div style="color: #666;">Com Telefone</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #17a2b8;">
+                                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">${pessoas.filter(p => p.email !== 'Não informado').length}</div>
+                                <div style="color: #666;">Com E-mail</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <strong>📅 Período Selecionado:</strong> ${tituloPeriodo || 'Período completo'}
+                            ${pessoas.length === 0 ? '<br><span style="color: #dc3545; font-size: 14px;">⚠️ Nenhuma pessoa encontrada no período selecionado</span>' : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Tabela de Contatos -->
+                    <h4>📋 Lista de Contatos (${pessoas.length} pessoas)</h4>
+                    <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+                        <table style="width: 100%;">
+                            <thead style="position: sticky; top: 0; background: white;">
+                                <tr style="background: #28a745; color: white;">
+                                    <th style="padding: 12px; text-align: left;">#</th>
+                                    <th style="padding: 12px; text-align: left;">Nome</th>
+                                    <th style="padding: 12px; text-align: left;">Telefone</th>
+                                    <th style="padding: 12px; text-align: left;">E-mail</th>
+                                    <th style="padding: 12px; text-align: left;">Tipos de Atendimento</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pessoas.map((p, index) => `
+                                    <tr style="${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
+                                        <td style="padding: 10px; text-align: center; font-weight: bold;">${index + 1}</td>
+                                        <td style="padding: 10px;"><strong>${p.nome}</strong></td>
+                                        <td style="padding: 10px;">
+                                            ${p.telefone !== 'Não informado' 
+                                                ? `<a href="tel:${p.telefone}" style="color: #007bff; text-decoration: none;">${p.telefone}</a>` 
+                                                : '<span style="color: #6c757d; font-style: italic;">Não informado</span>'
+                                            }
+                                        </td>
+                                        <td style="padding: 10px;">
+                                            ${p.email !== 'Não informado' 
+                                                ? `<a href="mailto:${p.email}" style="color: #007bff; text-decoration: none;">${p.email}</a>` 
+                                                : '<span style="color: #6c757d; font-style: italic;">Não informado</span>'
+                                            }
+                                        </td>
+                                        <td style="padding: 10px;">
+                                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                                ${Array.from(p.tipos).map(tipo => `
+                                                    <span style="background: ${getTipoColor(tipo.toLowerCase())}; color: white; padding: 2px 6px; border-radius: 8px; font-size: 11px; white-space: nowrap;">
+                                                        ${tipo.toUpperCase().replace('_', ' ')}
+                                                    </span>
+                                                `).join('')}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${pessoas.length > 0 ? `
+                        <div style="margin-top: 15px; padding: 15px; background: #e9ecef; border-radius: 5px; text-align: center;">
+                            <strong>📊 Estatísticas de Contato:</strong><br>
+                            Telefones cadastrados: ${pessoas.filter(p => p.telefone !== 'Não informado').length} de ${pessoas.length} (${((pessoas.filter(p => p.telefone !== 'Não informado').length / pessoas.length) * 100).toFixed(1)}%)<br>
+                            E-mails cadastrados: ${pessoas.filter(p => p.email !== 'Não informado').length} de ${pessoas.length} (${((pessoas.filter(p => p.email !== 'Não informado').length / pessoas.length) * 100).toFixed(1)}%)
+                        </div>
+                    ` : ''}
+                `;
+                
+                const botoesExportacao = document.getElementById('botoesExportacao');
+                if (botoesExportacao) {
+                    botoesExportacao.style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Erro no relatório de contatos:', error);
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <p style="color: red;">Erro ao gerar relatório de contatos: ${error.message}</p>
+                    <p style="color: orange;">Verifique se você tem permissão para acessar relatórios.</p>
+                `;
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        async function gerarRelatorioPessoasCidades(button) {
+            setButtonLoading(button, true);
+            try {
+                // Usar os mesmos filtros de data do relatório geral
+                const dataInicio = document.getElementById('dataInicio').value;
+                const dataFim = document.getElementById('dataFim').value;
+                const tipo = document.getElementById('filtroTipo').value;
+                
+                let url = 'http://localhost:3000/api/frequencias?';
+                if (dataInicio) url += `dataInicio=${dataInicio}&`;
+                if (dataFim) url += `dataFim=${dataFim}&`;
+                if (tipo) url += `tipo=${tipo}&`;
+                
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const frequencias = await response.json();
+                
+                // Debug: verificar estrutura dos dados
+                console.log('=== DEBUG RELATÓRIO CIDADES ===');
+                console.log('Status da resposta:', response.status);
+                console.log('Total de frequências:', frequencias.length);
+                if (frequencias.length > 0) {
+                    console.log('Primeira frequência:', frequencias[0]);
+                    console.log('Campos disponíveis:', Object.keys(frequencias[0]));
+                    console.log('Cidade da primeira:', frequencias[0].cidade);
+                    console.log('Estado da primeira:', frequencias[0].estado);
+                } else {
+                    console.log('Nenhuma frequência retornada');
+                }
+                console.log('=== FIM DEBUG ===');
+                
+                // Agrupar frequências por cidade
+                const cidadeStats = {};
+                
+                frequencias.forEach(f => {
+                    if (f.cidade && f.cidade.trim() !== '') {
+                        const cidadeNormalizada = normalizarCidade(f.cidade.trim());
+                        const chave = `${cidadeNormalizada}/${f.estado || 'N/A'}`;
+                        if (!cidadeStats[chave]) {
+                            cidadeStats[chave] = { total: 0, pessoas: new Set() };
+                        }
+                        cidadeStats[chave].total++;
+                        cidadeStats[chave].pessoas.add(f.pessoa_id);
+                    }
+                });
+                
+                // Se não encontrou cidades nas frequências, mostrar mensagem explicativa
+                if (Object.keys(cidadeStats).length === 0) {
+                    document.getElementById('relatorioResultado').innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+                            <h3 style="color: #856404;">⚠️ Dados de Cidade Não Disponíveis</h3>
+                            <p>Foram encontradas <strong>${frequencias.length} frequências</strong>, mas nenhuma possui dados de cidade.</p>
+                            <p>Isso pode acontecer se:</p>
+                            <ul style="text-align: left; display: inline-block;">
+                                <li>As frequências foram registradas antes da implementação dos dados de cidade</li>
+                                <li>Os dados de cidade não estão sendo retornados pela API</li>
+                                <li>As pessoas não possuem cidade cadastrada</li>
+                            </ul>
+                            <p><em>Verifique se a API de frequências está retornando os campos cidade e estado.</em></p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Ordenar e pegar top 10
+                const top10Cidades = Object.entries(cidadeStats)
+                    .map(([cidade, stats]) => ({ cidade, total: stats.total, pessoas: stats.pessoas.size }))
+                    .sort((a, b) => b.total - a.total)
+                    .slice(0, 10);
+                
+                const todasCidades = Object.entries(cidadeStats)
+                    .map(([cidade, stats]) => ({ cidade, total: stats.total, pessoas: stats.pessoas.size }))
+                    .sort((a, b) => b.total - a.total);
+                
+                const totalFrequencias = frequencias.length;
+                
+                // Criar título com período selecionado
+                let tituloPeriodo = '';
+                if (dataInicio && dataFim) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (${dataInicioFormatada} a ${dataFimFormatada})`;
+                } else if (dataInicio) {
+                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (a partir de ${dataInicioFormatada})`;
+                } else if (dataFim) {
+                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    tituloPeriodo = ` (até ${dataFimFormatada})`;
+                }
+                
+                let tituloTipo = '';
+                if (tipo) {
+                    tituloTipo = ` - Tipo: ${tipo}`;
+                }
+                
+                // Criar gráfico de pizza
+                const canvasId = 'graficoTop10Cidades';
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <h3>🏆 Top 10 Cidades por Frequência${tituloPeriodo}${tituloTipo}</h3>
+                    <p style="color: #666; margin-bottom: 20px;">Total: ${totalFrequencias} frequências encontradas</p>
+                    <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <div style="flex: 1;">
+                            <canvas id="${canvasId}" width="400" height="400"></canvas>
+                        </div>
+                        <div style="flex: 1;">
+                            <table style="width: 100%;">
+                                <thead>
+                                    <tr style="background: #6f42c1; color: white;">
+                                        <th>Posição</th>
+                                        <th>Cidade/Estado</th>
+                                        <th>Total Frequências</th>
+                                        <th>Pessoas Únicas</th>
+                                        <th>%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${top10Cidades.map((c, index) => {
+                                        const percentual = ((c.total / totalFrequencias) * 100).toFixed(1);
+                                        return `
+                                            <tr>
+                                                <td style="text-align: center; font-weight: bold;">${index + 1}º</td>
+                                                <td><strong>${normalizarCidade(c.cidade)}</strong></td>
+                                                <td style="text-align: center;">${c.total}</td>
+                                                <td style="text-align: center;">${c.pessoas}</td>
+                                                <td style="text-align: center;">${percentual}%</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <h3>📊 Lista Completa de Todas as Cidades (${todasCidades.length} cidades)</h3>
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+                        <table style="width: 100%;">
+                            <thead style="position: sticky; top: 0; background: white;">
+                                <tr style="background: #6c757d; color: white;">
+                                    <th style="padding: 10px;">#</th>
+                                    <th style="padding: 10px;">Cidade/Estado</th>
+                                    <th style="padding: 10px;">Total Frequências</th>
+                                    <th style="padding: 10px;">Pessoas Únicas</th>
+                                    <th style="padding: 10px;">Média por Pessoa</th>
+                                    <th style="padding: 10px;">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${todasCidades.map((c, index) => {
+                                    const percentual = ((c.total / totalFrequencias) * 100).toFixed(1);
+                                    const media = (c.total / c.pessoas).toFixed(1);
+                                    return `
+                                        <tr style="${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
+                                            <td style="text-align: center; padding: 8px;">${index + 1}</td>
+                                            <td style="padding: 8px;"><strong>${normalizarCidade(c.cidade)}</strong></td>
+                                            <td style="text-align: center; padding: 8px;">${c.total}</td>
+                                            <td style="text-align: center; padding: 8px;">${c.pessoas}</td>
+                                            <td style="text-align: center; padding: 8px;">${media}</td>
+                                            <td style="text-align: center; padding: 8px;">${percentual}%</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 5px; text-align: center;">
+                        <strong>Total de frequências: ${totalFrequencias} | Cidades representadas: ${todasCidades.length}</strong>
+                    </div>
+                `;
+                
+                // Criar gráfico de pizza
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                
+                // Destruir gráfico anterior se existir
+                if (window.chartInstance) {
+                    window.chartInstance.destroy();
+                }
+                
+                const cores = [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+                ];
+                
+                // Garantir que temos exatamente 10 cidades para o gráfico
+                const cidadesGrafico = top10Cidades.slice(0, 10);
+                
+                window.chartInstance = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: cidadesGrafico.map(c => normalizarCidade(c.cidade)),
+                        datasets: [{
+                            data: cidadesGrafico.map(c => c.total),
+                            backgroundColor: cores.slice(0, cidadesGrafico.length),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Top ${cidadesGrafico.length} Cidades por Frequência`,
+                                font: { size: 16, weight: 'bold' }
+                            },
+                            legend: {
+                                position: 'bottom',
+                                labels: { padding: 20, usePointStyle: true }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                        return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                const botoesExportacao = document.getElementById('botoesExportacao');
+                if (botoesExportacao) {
+                    botoesExportacao.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro no relatório por cidades:', error);
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <p style="color: red;">Erro ao gerar relatório de pessoas por cidade: ${error.message}</p>
+                    <p style="color: orange;">Verifique se você tem permissão para acessar relatórios.</p>
+                `;
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        async function gerarRelatorioCadastros(button) {
+            setButtonLoading(button, true);
+            try {
+                const response = await fetch('http://localhost:3000/api/pessoas', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const pessoas = await response.json();
+                
+                // Calcular estatísticas
+                const totalPessoas = pessoas.length;
+                const comTelefone = pessoas.filter(p => p.telefone && p.telefone.trim()).length;
+                const comEmail = pessoas.filter(p => p.email && p.email.trim()).length;
+                const comCpf = pessoas.filter(p => p.cpf && p.cpf.trim()).length;
+                const comNascimento = pessoas.filter(p => p.nascimento).length;
+                
+                // Agrupar por cidade
+                const cidadeStats = {};
+                pessoas.forEach(p => {
+                    const cidade = p.cidade || 'Não informado';
+                    if (!cidadeStats[cidade]) {
+                        cidadeStats[cidade] = 0;
+                    }
+                    cidadeStats[cidade]++;
+                });
+                
+                const cidades = Object.keys(cidadeStats).length;
+                const cidadesMaisComuns = Object.entries(cidadeStats)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+                
+                // Agrupar por religião
+                const religiaoStats = {};
+                pessoas.forEach(p => {
+                    const religiao = p.religiao || 'Não informado';
+                    if (!religiaoStats[religiao]) {
+                        religiaoStats[religiao] = 0;
+                    }
+                    religiaoStats[religiao]++;
+                });
+                
+                // Ordenar pessoas por nome
+                pessoas.sort((a, b) => a.nome.localeCompare(b.nome));
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <h3>📋 Relatório de Cadastros</h3>
+                    
+                    <!-- Resumo Estatístico -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; color: #fd7e14;">📊 Resumo Estatístico</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #fd7e14;">
+                                <div style="font-size: 24px; font-weight: bold; color: #fd7e14;">${totalPessoas}</div>
+                                <div style="color: #666;">Total de Pessoas</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #28a745;">
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${comTelefone}</div>
+                                <div style="color: #666;">Com Telefone</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #007bff;">
+                                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${comEmail}</div>
+                                <div style="color: #666;">Com E-mail</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #6f42c1;">
+                                <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">${comCpf}</div>
+                                <div style="color: #666;">Com CPF</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #ffc107;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${comNascimento}</div>
+                                <div style="color: #666;">Com Data Nasc.</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #17a2b8;">
+                                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">${cidades}</div>
+                                <div style="color: #666;">Cidades</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <strong>📍 Cidades mais comuns:</strong> 
+                            ${cidadesMaisComuns.map(([cidade, count]) => 
+                                `<span style="background: #e9ecef; padding: 2px 6px; border-radius: 3px; margin-right: 5px;">${cidade} (${count})</span>`
+                            ).join('')}
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <strong>📊 Completude dos dados:</strong><br>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
+                                <div>Telefone: <strong>${((comTelefone / totalPessoas) * 100).toFixed(1)}%</strong></div>
+                                <div>E-mail: <strong>${((comEmail / totalPessoas) * 100).toFixed(1)}%</strong></div>
+                                <div>CPF: <strong>${((comCpf / totalPessoas) * 100).toFixed(1)}%</strong></div>
+                                <div>Data Nasc.: <strong>${((comNascimento / totalPessoas) * 100).toFixed(1)}%</strong></div>
+                            </div>
+                        </div>
+                        
+                        ${totalPessoas === 0 ? '<div style="color: #dc3545; font-size: 14px;">⚠️ Nenhuma pessoa cadastrada no sistema</div>' : ''}
+                    </div>
+                    
+                    <!-- Tabela de Pessoas -->
+                    <h4>👥 Lista de Pessoas Cadastradas (${totalPessoas} pessoas)</h4>
+                    <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+                        <table style="width: 100%;">
+                            <thead style="position: sticky; top: 0; background: white;">
+                                <tr style="background: #fd7e14; color: white;">
+                                    <th style="padding: 12px; text-align: left;">#</th>
+                                    <th style="padding: 12px; text-align: left;">Nome</th>
+                                    <th style="padding: 12px; text-align: left;">CPF</th>
+                                    <th style="padding: 12px; text-align: left;">Telefone</th>
+                                    <th style="padding: 12px; text-align: left;">E-mail</th>
+                                    <th style="padding: 12px; text-align: left;">Cidade</th>
+                                    <th style="padding: 12px; text-align: left;">Estado</th>
+                                    <th style="padding: 12px; text-align: left;">Religião</th>
+                                    <th style="padding: 12px; text-align: left;">Cadastrado em</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pessoas.map((p, index) => `
+                                    <tr style="${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
+                                        <td style="padding: 10px; text-align: center; font-weight: bold;">${index + 1}</td>
+                                        <td style="padding: 10px;"><strong>${p.nome}</strong></td>
+                                        <td style="padding: 10px;">${p.cpf || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
+                                        <td style="padding: 10px;">
+                                            ${p.telefone 
+                                                ? `<a href="tel:${p.telefone}" style="color: #007bff; text-decoration: none;">${p.telefone}</a>` 
+                                                : '<span style="color: #6c757d; font-style: italic;">Não informado</span>'
+                                            }
+                                        </td>
+                                        <td style="padding: 10px;">
+                                            ${p.email 
+                                                ? `<a href="mailto:${p.email}" style="color: #007bff; text-decoration: none;">${p.email}</a>` 
+                                                : '<span style="color: #6c757d; font-style: italic;">Não informado</span>'
+                                            }
+                                        </td>
+                                        <td style="padding: 10px;">${p.cidade || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
+                                        <td style="padding: 10px;">${p.estado || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
+                                        <td style="padding: 10px;">${p.religiao || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
+                                        <td style="padding: 10px;">${p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${totalPessoas > 0 ? `
+                        <div style="margin-top: 15px; padding: 15px; background: #e9ecef; border-radius: 5px; text-align: center;">
+                            <strong>📈 Análise de Dados:</strong><br>
+                            ${comTelefone + comEmail === 0 ? 
+                                '<span style="color: #dc3545;">⚠️ Nenhuma pessoa possui dados de contato cadastrados</span>' :
+                                `Dados de contato disponíveis para ${Math.max(comTelefone, comEmail)} pessoas (${((Math.max(comTelefone, comEmail) / totalPessoas) * 100).toFixed(1)}% do total)`
+                            }
+                        </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('botoesExportacao').style.display = 'block';
+                // Armazenar dados do relatório atual para exportação
+                window.relatorioAtual = {
+                    tipo: 'Relatório de Cadastros',
+                    dados: pessoas,
+                    filtros: {}
+                };
+                
+            } catch (error) {
+                console.error('Erro no relatório de cadastros:', error);
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <div style="color: red; padding: 20px; text-align: center;">
+                        <h3>❌ Erro ao gerar relatório</h3>
+                        <p>Não foi possível carregar os dados de cadastros.</p>
+                        <p style="font-size: 14px; color: #666;">Erro: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        function exportarCSV(button) {
+            const tabela = document.querySelector('#relatorioResultado table');
+            if (!tabela) {
+                alert('Nenhum relatório para exportar');
+                return;
+            }
+            
+            setButtonLoading(button, true);
+            
+            let csv = '';
+            const linhas = tabela.querySelectorAll('tr');
+            
+            linhas.forEach(linha => {
+                const colunas = linha.querySelectorAll('th, td');
+                const linhaCsv = Array.from(colunas).map(col => {
+                    // Limpar o texto removendo HTML e espaços extras
+                    let texto = col.textContent || col.innerText || '';
+                    texto = texto.trim();
+                    
+                    // Remover quebras de linha e espaços múltiplos
+                    texto = texto.replace(/\s+/g, ' ');
+                    
+                    // Escapar aspas duplas
+                    texto = texto.replace(/"/g, '""');
+                    
+                    // Envolver em aspas se contém vírgula, quebra de linha ou aspas
+                    if (texto.includes(',') || texto.includes('\n') || texto.includes('"')) {
+                        return '"' + texto + '"';
+                    }
+                    
+                    return texto;
+                }).join(','); // Separado por vírgula
+                
+                csv += linhaCsv + '\n';
+            });
+            
+            // Adicionar BOM para UTF-8 (melhora compatibilidade com Excel)
+            const BOM = '\uFEFF';
+            const csvContent = BOM + csv;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `relatorio_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log('✅ CSV exportado com separação por vírgula');
+            
+            // Pequeno delay para garantir que o download iniciou
+            setTimeout(() => {
+                setButtonLoading(button, false);
+            }, 500);
+        }
+
+        function exportarPDF(button) {
+            console.log('🔄 Iniciando exportação PDF...');
+            
+            const tabela = document.querySelector('#relatorioResultado table');
+            if (!tabela) {
+                alert('Nenhum relatório para exportar');
+                console.error('❌ Tabela não encontrada para exportação');
+                return;
+            }
+            
+            console.log('✅ Tabela encontrada:', tabela);
+            setButtonLoading(button, true);
+            
+            // Função alternativa usando CDN diferente
+            function tentarCarregarAlternativo() {
+                console.log('🔄 Tentando CDN alternativo...');
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
+                script.onload = () => {
+                    console.log('✅ jsPDF alternativo carregado');
+                    setTimeout(() => {
+                        if (window.jsPDF) {
+                            gerarPDFSimples();
+                        } else {
+                            console.error('❌ Falha mesmo com CDN alternativo');
+                            alert('Não foi possível carregar a biblioteca PDF. Tente usar CSV ou XLSX.');
+                            setButtonLoading(button, false);
+                        }
+                    }, 500);
+                };
+                script.onerror = () => {
+                    console.error('❌ CDN alternativo também falhou');
+                    alert('Erro ao carregar PDF. Use CSV ou XLSX como alternativa.');
+                    setButtonLoading(button, false);
+                };
+                document.head.appendChild(script);
+            }
+
+            // Função simplificada para gerar PDF sem autoTable
+            function gerarPDFSimples() {
+                try {
+                    console.log('📄 Iniciando geração do PDF simples...');
+                    console.log('window.jsPDF:', window.jsPDF);
+                    console.log('typeof window.jsPDF:', typeof window.jsPDF);
+                    
+                    // Tentar diferentes formas de acessar jsPDF
+                    let jsPDFClass;
+                    
+                    // Verificar se é um objeto com propriedade jsPDF
+                    if (window.jsPDF && window.jsPDF.jsPDF && typeof window.jsPDF.jsPDF === 'function') {
+                        jsPDFClass = window.jsPDF.jsPDF;
+                        console.log('✅ Usando window.jsPDF.jsPDF');
+                    }
+                    // Verificar se window.jsPDF é diretamente a função
+                    else if (window.jsPDF && typeof window.jsPDF === 'function') {
+                        jsPDFClass = window.jsPDF;
+                        console.log('✅ Usando window.jsPDF diretamente');
+                    }
+                    // Verificar se existe uma variável global jsPDF
+                    else if (typeof jsPDF !== 'undefined' && typeof jsPDF === 'function') {
+                        jsPDFClass = jsPDF;
+                        console.log('✅ Usando jsPDF global');
+                    }
+                    // Verificar se existe no window
+                    else if (window.jsPDF && window.jsPDF.default && typeof window.jsPDF.default === 'function') {
+                        jsPDFClass = window.jsPDF.default;
+                        console.log('✅ Usando window.jsPDF.default');
+                    }
+                    else {
+                        console.error('❌ jsPDF não encontrado em nenhuma forma');
+                        console.log('Disponível no window:', Object.keys(window).filter(k => k.toLowerCase().includes('pdf')));
+                        throw new Error('jsPDF não encontrado após carregamento');
+                    }
+                    
+                    console.log('✅ jsPDF encontrado:', typeof jsPDFClass);
+                    const doc = new jsPDFClass();
+                    console.log('✅ Documento PDF criado');
+
+                    // Título do relatório
+                    const titulo = window.relatorioAtual?.tipo || 'Relatório';
+                    doc.setFontSize(16);
+                    doc.text(titulo, 20, 20);
+                    doc.setFontSize(10);
+                    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 20, 30);
+                    console.log('✅ Título adicionado:', titulo);
+
+                    // Extrair dados da tabela de forma simples
+                    const linhas = [];
+                    const rows = tabela.querySelectorAll('tr');
+                    
+                    let yPosition = 50;
+                    const lineHeight = 6;
+                    const pageHeight = 280;
+                    
+                    rows.forEach((row, index) => {
+                        const cells = row.querySelectorAll('th, td');
+                        let linha = '';
+                        
+                        cells.forEach((cell, cellIndex) => {
+                            if (cellIndex > 0) linha += ' | ';
+                            linha += cell.textContent.trim();
+                        });
+                        
+                        // Verificar se precisa de nova página
+                        if (yPosition > pageHeight) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        // Usar fonte menor para cabeçalho
+                        if (index === 0) {
+                            doc.setFontSize(8);
+                            doc.setFont(undefined, 'bold');
+                        } else {
+                            doc.setFontSize(7);
+                            doc.setFont(undefined, 'normal');
+                        }
+                        
+                        // Quebrar linha longa
+                        const maxWidth = 170;
+                        const linhas = doc.splitTextToSize(linha, maxWidth);
+                        
+                        linhas.forEach(l => {
+                            doc.text(l, 20, yPosition);
+                            yPosition += lineHeight;
+                        });
+                        
+                        yPosition += 2; // Espaço extra entre linhas
+                    });
+                    
+                    console.log('✅ Conteúdo adicionado ao PDF');
+
+                    // Salvar PDF
+                    const nomeArquivo = `relatorio_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(nomeArquivo);
+                    console.log('✅ PDF salvo:', nomeArquivo);
+                    
+                    alert('PDF gerado com sucesso!');
+                    
+                    // Desabilitar loading após salvar
+                    setTimeout(() => {
+                        setButtonLoading(button, false);
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ Erro na geração do PDF:', error);
+                    alert('Erro ao gerar PDF: ' + error.message);
+                    setButtonLoading(button, false);
+                }
+            }
+
+            // Verificar se jsPDF está disponível
+            if (typeof window.jsPDF === 'undefined' && typeof jsPDF === 'undefined') {
+                console.log('📦 Carregando jsPDF...');
+                
+                // Carregar apenas jsPDF (sem autoTable para simplificar)
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = () => {
+                    console.log('✅ Script jsPDF carregado');
+                    console.log('window após carregamento:', Object.keys(window).filter(k => k.toLowerCase().includes('pdf')));
+                    
+                    // Aguardar mais tempo para garantir inicialização
+                    let tentativas = 0;
+                    const maxTentativas = 10;
+                    
+                    const verificarJsPDF = () => {
+                        tentativas++;
+                        console.log(`🔍 Tentativa ${tentativas} de verificar jsPDF...`);
+                        
+                        if (window.jsPDF || typeof jsPDF !== 'undefined') {
+                            console.log('✅ jsPDF encontrado após', tentativas, 'tentativas');
+                            console.log('window.jsPDF:', window.jsPDF);
+                            console.log('global jsPDF:', typeof jsPDF !== 'undefined' ? jsPDF : 'não encontrado');
+                            gerarPDFSimples();
+                        } else if (tentativas < maxTentativas) {
+                            console.log('⏳ jsPDF ainda não disponível, tentando novamente...');
+                            setTimeout(verificarJsPDF, 100);
+                        } else {
+                            console.error('❌ jsPDF não foi encontrado após', maxTentativas, 'tentativas');
+                            console.log('🔄 Tentando CDN alternativo...');
+                            tentarCarregarAlternativo();
+                        }
+                    };
+                    
+                    // Iniciar verificação após um pequeno delay
+                    setTimeout(verificarJsPDF, 100);
+                };
+                script.onerror = (error) => {
+                    console.error('❌ Erro ao carregar jsPDF do CDNJS:', error);
+                    console.log('🔄 Tentando CDN alternativo...');
+                    tentarCarregarAlternativo();
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('✅ jsPDF já disponível');
+                gerarPDFSimples();
+            }
+        }
+
+        function exportarXLSX(button) {
+            const tabela = document.querySelector('#relatorioResultado table');
+            if (!tabela) {
+                alert('Nenhum relatório para exportar');
+                return;
+            }
+            
+            setButtonLoading(button, true);
+
+            try {
+                // Verificar se SheetJS está disponível
+                if (typeof XLSX === 'undefined') {
+                    // Carregar SheetJS dinamicamente
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                    script.onload = () => gerarXLSX();
+                    script.onerror = () => {
+                        alert('Erro ao carregar biblioteca de Excel');
+                        setButtonLoading(button, false);
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    gerarXLSX();
+                }
+            } catch (error) {
+                alert('Erro ao exportar Excel: ' + error.message);
+                setButtonLoading(button, false);
+            }
+
+            function gerarXLSX() {
+                // Criar workbook
+                const wb = XLSX.utils.book_new();
+                
+                // Converter tabela HTML para worksheet
+                const ws = XLSX.utils.table_to_sheet(tabela);
+                
+                // Adicionar worksheet ao workbook
+                const nomeAba = window.relatorioAtual?.tipo?.replace(/[^a-zA-Z0-9]/g, '_') || 'Relatorio';
+                XLSX.utils.book_append_sheet(wb, ws, nomeAba);
+                
+                // Salvar arquivo
+                const nomeArquivo = `relatorio_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, nomeArquivo);
+                
+                // Desabilitar loading após salvar
+                setTimeout(() => {
+                    setButtonLoading(button, false);
+                }, 500);
+            }
+        }
+
+        async function carregarUsuarios() {
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const usuarios = await response.json();
+                
+                document.getElementById('usuariosLista').innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${usuarios.map(u => `
+                                <tr>
+                                    <td>${u.nome}</td>
+                                    <td>${u.email}</td>
+                                    <td><span style="background: ${getTipoUserColor(u.tipo)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">${u.tipo.toUpperCase()}</span></td>
+                                    <td><span style="color: ${u.ativo ? '#28a745' : '#dc3545'}; font-weight: bold;">${u.ativo ? '✅ Ativo' : '❌ Inativo'}</span></td>
+                                    <td>
+                                        <button onclick="resetarSenhaUsuario(${u.id}, '${u.nome}')" 
+                                                style="background: #ffc107; color: #000; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 5px;"
+                                                title="Resetar senha do usuário">
+                                            🔑 Resetar Senha
+                                        </button>
+                                        ${u.ativo ? 
+                                            `<button onclick="toggleUsuarioStatus(${u.id}, false, '${u.nome}')" 
+                                                     style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;"
+                                                     title="Desativar usuário">
+                                                🚫 Desativar
+                                             </button>` :
+                                            `<button onclick="toggleUsuarioStatus(${u.id}, true, '${u.nome}')" 
+                                                     style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;"
+                                                     title="Ativar usuário">
+                                                ✅ Ativar
+                                             </button>`
+                                        }
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('usuariosLista').innerHTML = '<p style="color: red;">Erro ao carregar usuários</p>';
+            }
+        }
+
+        function mostrarModalNovoUsuario(button) {
+            document.getElementById('modalNovoUsuario').style.display = 'block';
+            // Limpar campos
+            document.getElementById('novoUsuarioNome').value = '';
+            document.getElementById('novoUsuarioEmail').value = '';
+            document.getElementById('novoUsuarioSenha').value = '';
+            document.querySelectorAll('input[name="tipoUsuario"]').forEach(r => r.checked = false);
+        }
+        
+        function fecharModalNovoUsuario() {
+            document.getElementById('modalNovoUsuario').style.display = 'none';
+        }
+        
+        function salvarNovoUsuario() {
+            const nome = document.getElementById('novoUsuarioNome').value.trim();
+            const email = document.getElementById('novoUsuarioEmail').value.trim();
+            const senha = document.getElementById('novoUsuarioSenha').value;
+            const tipo = document.querySelector('input[name="tipoUsuario"]:checked')?.value;
+            
+            // Validações
+            if (!nome) {
+                alert('Por favor, informe o nome.');
+                document.getElementById('novoUsuarioNome').focus();
+                return;
+            }
+            
+            if (!email) {
+                alert('Por favor, informe o e-mail.');
+                document.getElementById('novoUsuarioEmail').focus();
+                return;
+            }
+            
+            if (!email.includes('@')) {
+                alert('Por favor, informe um e-mail válido.');
+                document.getElementById('novoUsuarioEmail').focus();
+                return;
+            }
+            
+            if (!senha || senha.length < 4) {
+                alert('Por favor, informe uma senha com pelo menos 4 caracteres.');
+                document.getElementById('novoUsuarioSenha').focus();
+                return;
+            }
+            
+            if (!tipo) {
+                alert('Por favor, selecione o tipo de usuário.');
+                return;
+            }
+            
+            // Criar usuário
+            fetch('http://localhost:3000/api/usuarios', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ nome, email, senha, tipo })
+            }).then(response => {
+                if (response.ok) {
+                    // Criar notificação de sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '✅ Usuário criado com sucesso!';
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 2000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover após 4 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                    fecharModalNovoUsuario();
+                    carregarUsuarios();
+                } else {
+                    response.json().then(data => {
+                        alert('Erro ao criar usuário: ' + (data.error || 'Erro desconhecido'));
+                    }).catch(() => {
+                        alert('Erro ao criar usuário');
+                    });
+                }
+            }).catch(error => {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao criar usuário');
+            });
+        }
+        
+        // Fechar modal ao clicar fora
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('modalNovoUsuario');
+            if (event.target === modal) {
+                fecharModalNovoUsuario();
+            }
+        });
+        
+        // Função antiga mantida para compatibilidade (não será mais usada)
+        function criarUsuario() {
+            mostrarModalNovoUsuario();
+        }
+
+        // Função para obter cor do tipo de usuário
+        function getTipoUserColor(tipo) {
+            const colors = {
+                'geral': '#28a745',
+                'responsavel': '#ffc107', 
+                'administrador': '#dc3545'
+            };
+            return colors[tipo] || '#6c757d';
+        }
+
+        // Resetar senha de usuário
+        async function resetarSenhaUsuario(usuarioId, nomeUsuario) {
+            const confirmacao = confirm(`Tem certeza que deseja resetar a senha do usuário "${nomeUsuario}"?\n\nO usuário precisará fazer login novamente com a nova senha.`);
+            
+            if (!confirmacao) {
+                return;
+            }
+            
+            const novaSenha = prompt(`Digite a nova senha para "${nomeUsuario}":\n(mínimo 4 caracteres)`);
+            
+            if (!novaSenha) {
+                return;
+            }
+            
+            if (novaSenha.length < 4) {
+                alert('A senha deve ter pelo menos 4 caracteres.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/usuarios/${usuarioId}/reset-senha`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ novaSenha })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Criar notificação de sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = `🔑 Senha de "${nomeUsuario}" resetada com sucesso!`;
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #ffc107;
+                        color: #000;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 2000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover após 5 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 5000);
+                    
+                    alert(data.message);
+                } else {
+                    alert('Erro ao resetar senha: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao resetar senha');
+            }
+        }
+
+        // Ativar/Desativar usuário
+        async function toggleUsuarioStatus(usuarioId, novoStatus, nomeUsuario) {
+            const acao = novoStatus ? 'ativar' : 'desativar';
+            const confirmacao = confirm(`Tem certeza que deseja ${acao} o usuário "${nomeUsuario}"?`);
+            
+            if (!confirmacao) {
+                return;
+            }
+            
+            try {
+                // Primeiro, buscar os dados atuais do usuário
+                const responseGet = await fetch(`http://localhost:3000/api/usuarios`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const usuarios = await responseGet.json();
+                const usuario = usuarios.find(u => u.id === usuarioId);
+                
+                if (!usuario) {
+                    alert('Usuário não encontrado');
+                    return;
+                }
+                
+                // Atualizar apenas o status
+                const response = await fetch(`http://localhost:3000/api/usuarios/${usuarioId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        nome: usuario.nome,
+                        email: usuario.email,
+                        tipo: usuario.tipo,
+                        ativo: novoStatus
+                    })
+                });
+                
+                if (response.ok) {
+                    // Criar notificação de sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = `${novoStatus ? '✅' : '🚫'} Usuário "${nomeUsuario}" ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`;
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: ${novoStatus ? '#28a745' : '#dc3545'};
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 2000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover após 4 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                    carregarUsuarios(); // Recarregar lista
+                } else {
+                    const data = await response.json();
+                    alert('Erro ao alterar status: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao alterar status do usuário');
+            }
+        }
+
+        async function atualizarPessoa(button) {
+            if (!pessoaSelecionada) {
+                alert('Nenhuma pessoa selecionada');
+                return;
+            }
+            
+            setButtonLoading(button, true);
+            
+            const dadosAtualizados = {
+                nome: document.getElementById('editNome').value,
+                cpf: document.getElementById('editCpf').value,
+                nascimento: document.getElementById('editNascimento').value,
+                religiao: document.getElementById('editReligiao').value,
+                cidade: document.getElementById('editCidade').value,
+                estado: document.getElementById('editEstado').value,
+                telefone: document.getElementById('editTelefone').value,
+                email: document.getElementById('editEmail').value
+            };
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/pessoas/${pessoaSelecionada.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosAtualizados)
+                });
+                
+                if (response.ok) {
+                    // Criar div de notificação personalizada
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '✅ Dados atualizados com sucesso!';
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 1000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover após 4 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                    // Atualizar objeto da pessoa selecionada
+                    Object.assign(pessoaSelecionada, dadosAtualizados);
+                } else {
+                    alert('Erro ao atualizar dados');
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        // Testar conexão inicial
+        async function testarConexao() {
+            try {
+                console.log('Testando conexão com servidor...');
+                const response = await fetch('http://localhost:3000/api/pessoas?busca=test');
+                console.log('Teste de conexão - Status:', response.status);
+                
+                if (response.ok) {
+                    console.log('✅ Servidor conectado com sucesso');
+                } else {
+                    console.warn('⚠️ Servidor respondeu com erro:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Erro de conexão:', error);
+                alert('ATENÇÃO: Não foi possível conectar ao servidor.\nVerifique se o backend está rodando na porta 3000.');
+            }
+        }
+        
+        // Executar teste de conexão
+        testarConexao();
+        
+        // Carregar dados do perfil quando a seção for aberta
+        function carregarPerfil() {
+            document.getElementById('perfilNome').value = user.nome || '';
+            document.getElementById('perfilEmail').value = user.email || '';
+            document.getElementById('perfilTipo').value = user.tipo ? user.tipo.toUpperCase() : '';
+        }
+        
+        // Cancelar edição do perfil
+        function cancelarEdicaoPerfil() {
+            carregarPerfil();
+            // Limpar campos de senha
+            document.getElementById('senhaAtual').value = '';
+            document.getElementById('novaSenha').value = '';
+            document.getElementById('confirmarNovaSenha').value = '';
+        }
+        
+        // Form de editar perfil
+        document.getElementById('formPerfil').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const nome = document.getElementById('perfilNome').value.trim();
+            const email = document.getElementById('perfilEmail').value.trim();
+            
+            if (!nome || !email) {
+                alert('Nome e e-mail são obrigatórios.');
+                return;
+            }
+            
+            if (!email.includes('@')) {
+                alert('Por favor, informe um e-mail válido.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios/perfil', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ nome, email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Atualizar dados do usuário no localStorage
+                    user.nome = nome;
+                    user.email = email;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    // Atualizar display do nome no header
+                    document.getElementById('userInfo').textContent = `${user.nome} (${user.tipo})`;
+                    
+                    // Mostrar sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '✅ Perfil atualizado com sucesso!';
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 2000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                } else {
+                    alert('Erro ao atualizar perfil: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao atualizar perfil');
+            }
+        });
+        
+        // Form de alterar senha
+        document.getElementById('formSenha').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const senhaAtual = document.getElementById('senhaAtual').value;
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmarNovaSenha = document.getElementById('confirmarNovaSenha').value;
+            
+            // Se não preencheu nenhum campo de senha, não fazer nada
+            if (!senhaAtual && !novaSenha && !confirmarNovaSenha) {
+                alert('Preencha os campos de senha para alterá-la.');
+                return;
+            }
+            
+            if (!senhaAtual) {
+                alert('Senha atual é obrigatória.');
+                return;
+            }
+            
+            if (!novaSenha) {
+                alert('Nova senha é obrigatória.');
+                return;
+            }
+            
+            if (novaSenha.length < 4) {
+                alert('Nova senha deve ter pelo menos 4 caracteres.');
+                return;
+            }
+            
+            if (novaSenha !== confirmarNovaSenha) {
+                alert('As senhas não coincidem.');
+                return;
+            }
+            
+            try {
+                const nome = document.getElementById('perfilNome').value.trim();
+                const email = document.getElementById('perfilEmail').value.trim();
+                
+                const response = await fetch('http://localhost:3000/api/usuarios/perfil', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ nome, email, senhaAtual, novaSenha })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Atualizar dados do usuário no localStorage
+                    user.nome = nome;
+                    user.email = email;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    // Limpar campos de senha
+                    document.getElementById('senhaAtual').value = '';
+                    document.getElementById('novaSenha').value = '';
+                    document.getElementById('confirmarNovaSenha').value = '';
+                    
+                    // Mostrar sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '🔑 Perfil e senha atualizados com sucesso!';
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #ffc107;
+                        color: #000;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                        z-index: 2000;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 5000);
+                    
+                    alert(data.message + '\nSuas outras sessões foram invalidadas por segurança.');
+                    
+                } else {
+                    alert('Erro ao alterar senha: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro de conexão ao alterar senha');
+            }
+        });
+        
+        // Variáveis globais para duplicatas
+        let gruposDuplicatas = [];
+        let mesclagem_atual = null;
+        
+        // Mostrar estatísticas de performance
+        async function mostrarEstatisticas() {
+            try {
+                const response = await fetch('http://localhost:3000/api/duplicatas/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    
+                    return `
+                        <div style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h4 style="margin: 0 0 10px 0; color: #495057;">📊 Estatísticas do Sistema</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                                <div><strong>Total de pessoas:</strong> ${stats.total_pessoas.toLocaleString()}</div>
+                                <div><strong>Total de frequências:</strong> ${stats.total_frequencias.toLocaleString()}</div>
+                                <div><strong>Pessoas ativas:</strong> ${stats.pessoas_com_frequencia.toLocaleString()}</div>
+                            </div>
+                            <div style="background: #e7f3ff; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff;">
+                                <strong>💡 Recomendações de Performance:</strong><br>
+                                • Máximo recomendado por mesclagem: <strong>${stats.recomendacoes.max_mesclagem_simultanea} pessoas</strong><br>
+                                • Tamanho ideal de lote: <strong>${stats.recomendacoes.lote_recomendado} pessoas</strong><br>
+                                • Timeout sugerido: <strong>${stats.recomendacoes.timeout_sugerido}</strong><br>
+                                • Cache de análise: <strong>${stats.recomendacoes.cache_duracao}</strong>
+                            </div>
+                            ${stats.cache ? `
+                                <div style="background: ${stats.cache.cache_ativo ? '#d4edda' : '#f8d7da'}; padding: 10px; border-radius: 5px; border-left: 4px solid ${stats.cache.cache_ativo ? '#28a745' : '#dc3545'}; margin-top: 10px;">
+                                    <strong>🗄️ Status do Cache:</strong><br>
+                                    • Estado: <strong>${stats.cache.cache_ativo ? 'Ativo' : 'Inativo'}</strong><br>
+                                    ${stats.cache.cache_ativo ? `
+                                        • Gerado em: <strong>${stats.cache.cache_timestamp}</strong><br>
+                                        • Limiar usado: <strong>${(stats.cache.cache_threshold * 100).toFixed(0)}%</strong><br>
+                                        • Expira em: <strong>${stats.cache.cache_expira_em}s</strong><br>
+                                        <button onclick="limparCache()" style="background: #ffc107; color: #212529; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-top: 5px;">
+                                            🗑️ Limpar Cache
+                                        </button>
+                                    ` : '• Use "Analisar Duplicatas" para gerar cache'}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.warn('Não foi possível carregar estatísticas:', error);
+            }
+            return '';
+        }
+
+        // Analisar duplicatas com estatísticas e progresso
+        async function analisarDuplicatas(button) {
+            setButtonLoading(button, true);
+            console.log('🔍 Função analisarDuplicatas() chamada');
+            
+            // Verificar se ProgressTimer está disponível
+            let usarProgresso = typeof progressTimer !== 'undefined';
+            if (!usarProgresso) {
+                console.warn('⚠️ ProgressTimer não está disponível, usando modo simples');
+            }
+            
+            const threshold = document.getElementById('thresholdSimilaridade').value;
+            console.log('📊 Threshold selecionado:', threshold);
+            
+            // Verificar se token está disponível
+            if (!token) {
+                console.error('❌ Token de autenticação não encontrado');
+                alert('Erro: Sessão expirada. Faça login novamente.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Verificar se usuário é administrador
+            if (user.tipo !== 'administrador') {
+                alert('Erro: Apenas administradores podem analisar duplicatas.');
+                return;
+            }
+            
+            // Criar temporizador de progresso para análise (se disponível)
+            let timerId = null;
+            if (usarProgresso) {
+                timerId = progressTimer.create({
+                    title: 'Analisando Duplicatas',
+                    message: 'Carregando estatísticas do sistema...',
+                    estimatedTime: 15,
+                    steps: [
+                        { text: 'Carregando estatísticas' },
+                        { text: 'Consultando cadastros' },
+                        { text: 'Calculando similaridades' },
+                        { text: 'Agrupando duplicatas' },
+                        { text: 'Formatando resultados' }
+                    ]
+                });
+            }
+            
+            try {
+                // Mostrar loading inicial
+                document.getElementById('resumoDuplicatas').innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 18px; color: #007bff;">🔍 Preparando análise...</div>
+                        <div style="font-size: 14px; color: #666; margin-top: 10px;">Carregando informações do sistema</div>
+                    </div>
+                `;
+                document.getElementById('resultadoDuplicatas').style.display = 'block';
+                
+                // Carregar estatísticas
+                if (usarProgresso && timerId) {
+                    progressTimer.nextStep(timerId);
+                }
+                const statsHtml = await mostrarEstatisticas();
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                if (usarProgresso && timerId) {
+                    progressTimer.update(timerId, { message: 'Iniciando análise de duplicatas...' });
+                    progressTimer.nextStep(timerId);
+                }
+                
+                console.log('Iniciando análise de duplicatas com threshold:', threshold);
+                
+                const response = await fetch(`http://localhost:3000/api/duplicatas?threshold=${threshold}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Erro na resposta:', errorText);
+                    
+                    if (response.status === 401) {
+                        alert('Sessão expirada. Você será redirecionado para o login.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    throw new Error(`Erro ${response.status}: ${response.statusText}\n${errorText}`);
+                }
+                
+                if (usarProgresso && timerId) {
+                    progressTimer.update(timerId, { message: 'Processando dados recebidos...' });
+                    progressTimer.nextStep(timerId);
+                }
+                
+                const dados = await response.json();
+                console.log('Dados recebidos:', dados);
+                gruposDuplicatas = dados.grupos;
+                
+                await new Promise(resolve => setTimeout(resolve, 600));
+                
+                if (usarProgresso && timerId) {
+                    progressTimer.update(timerId, { message: 'Agrupando duplicatas encontradas...' });
+                    progressTimer.nextStep(timerId);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                if (usarProgresso && timerId) {
+                    progressTimer.update(timerId, { message: 'Formatando interface...' });
+                    progressTimer.nextStep(timerId);
+                }
+                
+                // Incluir estatísticas no resumo
+                const resumoComStats = statsHtml + `
+                    <h4 style="margin-top: 0; color: #007bff;">📊 Resultado da Análise</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #dc3545;">
+                            <div style="font-size: 24px; font-weight: bold; color: #dc3545;">${dados.total_grupos}</div>
+                            <div style="color: #666;">Grupos de Duplicatas</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #ffc107;">
+                            <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${dados.total_pessoas_duplicadas}</div>
+                            <div style="color: #666;">Pessoas Envolvidas</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #28a745;">
+                            <div style="font-size: 24px; font-weight: bold; color: #28a745;">${(dados.threshold_usado * 100).toFixed(0)}%</div>
+                            <div style="color: #666;">Limiar Usado</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Mostrar resumo
+                document.getElementById('resumoDuplicatas').innerHTML = resumoComStats;
+                
+                // Mostrar lista de grupos
+                if (dados.total_grupos === 0) {
+                    document.getElementById('listaDuplicatas').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #28a745;">
+                            <h3>✅ Nenhuma duplicata encontrada!</h3>
+                            <p>Com o limiar de ${(dados.threshold_usado * 100).toFixed(0)}%, não foram encontradas pessoas com nomes similares.</p>
+                            <p style="color: #666; font-size: 14px;">Tente reduzir o limiar se suspeitar de duplicatas.</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '<h4>🔍 Grupos de Possíveis Duplicatas</h4>';
+                    
+                    dados.grupos.forEach((grupo, index) => {
+                        html += `
+                            <div style="border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; background: white;">
+                                <div style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; border-radius: 8px 8px 0 0;">
+                                    <h5 style="margin: 0; color: #dc3545;">
+                                        Grupo ${index + 1} - Similaridade: ${(grupo.similaridade_media * 100).toFixed(1)}%
+                                        <span style="float: right;">
+                                            <button onclick="visualizarGrupo('${grupo.id}', [${grupo.pessoas.map(p => p.id).join(',')}])" 
+                                                    style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                                                👁️ Visualizar
+                                            </button>
+                                        </span>
+                                    </h5>
+                                </div>
+                                <div style="padding: 15px;">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                                        ${grupo.pessoas.map(pessoa => `
+                                            <div style="border: 1px solid #e9ecef; border-radius: 5px; padding: 10px;">
+                                                <div style="font-weight: bold; color: #007bff;">${pessoa.nome}</div>
+                                                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                                                    ID: ${pessoa.id} | 
+                                                    Frequências: ${pessoa.total_frequencias || 0} | 
+                                                    ${pessoa.cidade || 'Cidade não informada'}
+                                                </div>
+                                                <div style="font-size: 11px; color: #999; margin-top: 3px;">
+                                                    ${pessoa.telefone ? `📞 ${pessoa.telefone}` : '📞 Não informado'} | 
+                                                    ${pessoa.email ? `📧 ${pessoa.email}` : '📧 Não informado'}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    document.getElementById('listaDuplicatas').innerHTML = html;
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                if (usarProgresso && timerId) {
+                    progressTimer.complete(timerId, { 
+                        message: `Análise concluída! ${dados.total_grupos} grupos encontrados.`
+                    });
+                }
+                
+                document.getElementById('resultadoDuplicatas').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Erro ao analisar duplicatas:', error);
+                if (usarProgresso && timerId) {
+                    progressTimer.remove(timerId);
+                }
+                
+                // Mostrar erro na interface
+                document.getElementById('resumoDuplicatas').innerHTML = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; border-radius: 8px; text-align: center;">
+                        <h4 style="color: #721c24; margin-top: 0;">❌ Erro na Análise</h4>
+                        <p style="color: #721c24; margin-bottom: 10px;">Não foi possível analisar as duplicatas.</p>
+                        <details style="text-align: left; margin-top: 15px;">
+                            <summary style="cursor: pointer; color: #721c24; font-weight: bold;">Detalhes do erro</summary>
+                            <pre style="background: #fff; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 12px; overflow-x: auto;">${error.message}</pre>
+                        </details>
+                        <div style="margin-top: 15px;">
+                            <button onclick="analisarDuplicatas(this)" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                                🔄 Tentar Novamente
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('listaDuplicatas').innerHTML = '';
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+        
+        // Limpar cache de duplicatas
+        async function limparCache() {
+            if (!confirm('Tem certeza que deseja limpar o cache de duplicatas?\n\nIsso fará com que a próxima análise seja mais lenta.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/duplicatas/cache', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const resultado = await response.json();
+                    alert(`✅ ${resultado.message}\n\nCache limpo em: ${resultado.timestamp}\n\n💡 Execute "Analisar Duplicatas" novamente para gerar um novo cache.`);
+                } else {
+                    const error = await response.json();
+                    alert('Erro ao limpar cache: ' + error.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao limpar cache:', error);
+                alert('Erro de conexão ao limpar cache');
+            }
+        }
+        
+        // Visualizar detalhes de um grupo
+        async function visualizarGrupo(grupoId, pessoaIds) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/duplicatas/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const dados = await response.json();
+                mostrarModalMesclagem(dados);
+                
+            } catch (error) {
+                console.error('Erro ao visualizar grupo:', error);
+                alert('Erro ao carregar detalhes: ' + error.message);
+            }
+        }
+        
+        // Mostrar modal de mesclagem
+        function mostrarModalMesclagem(dados) {
+            mesclagem_atual = dados;
+            
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #28a745;">✅ Pessoa Principal (será mantida)</h4>
+                    <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px;">
+                        <strong>${dados.sugestao_mesclagem.pessoa_principal.nome}</strong> (ID: ${dados.sugestao_mesclagem.pessoa_principal.id})<br>
+                        <small>Frequências: ${dados.sugestao_mesclagem.pessoa_principal.total_frequencias}</small>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #dc3545;">❌ Pessoas que serão removidas</h4>
+                    ${dados.sugestao_mesclagem.pessoas_secundarias.map(pessoa => `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 5px;">
+                            <strong>${pessoa.nome}</strong> (ID: ${pessoa.id})<br>
+                            <small>Frequências: ${pessoa.total_frequencias} (serão transferidas)</small>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #007bff;">🔄 Dados após mesclagem</h4>
+                    <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 14px;">
+                            <div><strong>Nome:</strong> ${dados.sugestao_mesclagem.dados_mesclados.nome || 'N/A'}</div>
+                            <div><strong>CPF:</strong> ${dados.sugestao_mesclagem.dados_mesclados.cpf || 'N/A'}</div>
+                            <div><strong>Telefone:</strong> ${dados.sugestao_mesclagem.dados_mesclados.telefone || 'N/A'}</div>
+                            <div><strong>E-mail:</strong> ${dados.sugestao_mesclagem.dados_mesclados.email || 'N/A'}</div>
+                            <div><strong>Cidade:</strong> ${dados.sugestao_mesclagem.dados_mesclados.cidade || 'N/A'}</div>
+                            <div><strong>Estado:</strong> ${dados.sugestao_mesclagem.dados_mesclados.estado || 'N/A'}</div>
+                            <div><strong>Religião:</strong> ${dados.sugestao_mesclagem.dados_mesclados.religiao || 'N/A'}</div>
+                        </div>
+                        ${dados.sugestao_mesclagem.dados_mesclados.observacao ? `
+                            <div style="margin-top: 10px;">
+                                <strong>Observações:</strong><br>
+                                <small>${dados.sugestao_mesclagem.dados_mesclados.observacao}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px;">
+                    <strong>⚠️ Resumo da operação:</strong><br>
+                    • ${dados.sugestao_mesclagem.pessoas_secundarias.length} pessoa(s) será(ão) removida(s)<br>
+                    • ${dados.sugestao_mesclagem.total_frequencias_transferidas} frequência(s) será(ão) transferida(s)<br>
+                    • Todos os dados serão preservados na pessoa principal<br>
+                    • <strong style="color: #dc3545;">Esta operação não pode ser desfeita!</strong>
+                </div>
+            `;
+            
+            document.getElementById('conteudoMesclagem').innerHTML = html;
+            document.getElementById('modalMesclagem').style.display = 'block';
+        }
+        
+        // Fechar modal de mesclagem
+        function fecharModalMesclagem() {
+            document.getElementById('modalMesclagem').style.display = 'none';
+            mesclagem_atual = null;
+        }
+        
+        // Confirmar mesclagem com sistema de progresso otimizado
+        async function confirmarMesclagem() {
+            if (!mesclagem_atual) return;
+            
+            const pessoasSecundarias = mesclagem_atual.sugestao_mesclagem.pessoas_secundarias;
+            const totalPessoas = pessoasSecundarias.length;
+            
+            // Verificar se há muitas pessoas para mesclar
+            if (totalPessoas > 7) {
+                const confirmacao = confirm(`⚠️ ATENÇÃO: Você está tentando mesclar ${totalPessoas} pessoas de uma vez.\n\nPara melhor performance, recomendamos mesclar no máximo 7 pessoas por vez.\n\nDeseja continuar mesmo assim?`);
+                if (!confirmacao) return;
+            } else {
+                const confirmacao = confirm(`ATENÇÃO: Esta operação irá mesclar ${totalPessoas} cadastros permanentemente.\n\nTem certeza que deseja continuar?`);
+                if (!confirmacao) return;
+            }
+            
+            // Criar temporizador de progresso para mesclagem
+            const timerId = progressTimer.create({
+                title: 'Mesclando Cadastros',
+                message: `Processando mesclagem de ${totalPessoas} pessoas...`,
+                estimatedTime: Math.max(5, totalPessoas * 2), // 2 segundos por pessoa, mínimo 5
+                steps: [
+                    { text: 'Validando dados' },
+                    { text: 'Iniciando transação' },
+                    { text: 'Transferindo frequências' },
+                    { text: 'Removendo duplicatas' },
+                    { text: 'Finalizando mesclagem' }
+                ],
+                cancelable: false // Mesclagem não pode ser cancelada uma vez iniciada
+            });
+            
+            try {
+                progressTimer.nextStep(timerId);
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
+                progressTimer.nextStep(timerId);
+
+                const response = await fetch('http://localhost:3000/api/duplicatas/mesclar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        pessoa_principal_id: mesclagem_atual.sugestao_mesclagem.pessoa_principal.id,
+                        pessoas_secundarias_ids: pessoasSecundarias.map(p => p.id),
+                        dados_mesclados: mesclagem_atual.sugestao_mesclagem.dados_mesclados
+                    })
+                });
+                
+                const resultado = await response.json();
+                
+                if (response.status === 401) {
+                    progressTimer.remove(timerId);
+                    alert('Sessão expirada. Você será redirecionado para o login.');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                if (response.ok) {
+                    progressTimer.update(timerId, { message: 'Processando transferências...' });
+                    progressTimer.nextStep(timerId);
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    progressTimer.update(timerId, { message: 'Limpando registros duplicados...' });
+                    progressTimer.nextStep(timerId);
+                    await new Promise(resolve => setTimeout(resolve, 600));
+
+                    progressTimer.update(timerId, { message: 'Atualizando interface...' });
+                    progressTimer.nextStep(timerId);
+                    await new Promise(resolve => setTimeout(resolve, 400));
+
+                    // Mostrar detalhes do resultado
+                    let mensagemSucesso = `✅ Mesclagem realizada com sucesso!\n\n${resultado.message}`;
+                    if (resultado.pessoas_removidas) {
+                        mensagemSucesso += `\nPessoas removidas: ${resultado.pessoas_removidas}`;
+                    }
+                    if (resultado.total_frequencias_transferidas) {
+                        mensagemSucesso += `\nFrequências transferidas: ${resultado.total_frequencias_transferidas}`;
+                    }
+                    if (resultado.detalhes && resultado.detalhes.lotes_processados) {
+                        mensagemSucesso += `\nProcessamento: ${resultado.detalhes.lotes_processados} lotes`;
+                    }
+
+                    progressTimer.complete(timerId, { 
+                        message: `Mesclagem concluída! ${resultado.pessoas_removidas} pessoas processadas.`
+                    });
+                    
+                    // Mostrar resultado detalhado após o progresso
+                    setTimeout(() => {
+                        alert(mensagemSucesso);
+                        fecharModalMesclagem();
+                        // Cache foi limpo automaticamente no backend após a mesclagem
+                    }, 2000);
+                    
+                } else {
+                    progressTimer.remove(timerId);
+                    
+                    // Mostrar erro mais detalhado
+                    let mensagemErro = 'Erro ao mesclar: ' + (resultado.error || 'Erro desconhecido');
+                    if (resultado.sugestao) {
+                        mensagemErro += '\n\n💡 Sugestão: ' + resultado.sugestao;
+                    }
+                    if (resultado.tipo_erro === 'timeout') {
+                        mensagemErro += '\n\n⏱️ A operação demorou muito. Tente com menos pessoas por vez.';
+                    }
+                    
+                    alert(mensagemErro);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao mesclar:', error);
+                progressTimer.remove(timerId);
+                
+                let mensagemErro = 'Erro de conexão ao mesclar cadastros';
+                if (error.message.includes('timeout')) {
+                    mensagemErro += '\n\n⏱️ A operação demorou muito para responder. Verifique sua conexão e tente novamente.';
+                }
+                
+                alert(mensagemErro);
+            }
+        }
+        
+        // Fechar modal ao clicar fora
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('modalMesclagem');
+            if (event.target === modal) {
+                fecharModalMesclagem();
+            }
+        });
+        
+        // Ocultar seções baseado no tipo de usuário
+        if (user.tipo === 'geral') {
+            document.querySelector('button[onclick="showSection(\'relatorios\')"]').style.display = 'none';
+            document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
+            document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
+        } else if (user.tipo === 'responsavel') {
+            document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
+            document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

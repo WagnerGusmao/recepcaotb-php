@@ -1,11 +1,322 @@
+// Classe para gerenciar temporizadores de progresso
+class ProgressTimer {
+    constructor() {
+        this.activeTimers = new Map();
+        this.currentOverlay = null;
+    }
+
+    // Criar um novo temporizador de progresso
+    create(options = {}) {
+        const config = {
+            title: options.title || 'Processando...',
+            message: options.message || 'Aguarde enquanto processamos sua solicitação',
+            steps: options.steps || [],
+            showTimer: options.showTimer !== false,
+            showProgressBar: options.showProgressBar !== false,
+            showSpinner: options.showSpinner !== false,
+            cancelable: options.cancelable || false,
+            onCancel: options.onCancel || null,
+            estimatedTime: options.estimatedTime || 30, // segundos
+            ...options
+        };
+
+        const timerId = this.generateId();
+        const timer = {
+            id: timerId,
+            config,
+            startTime: Date.now(),
+            currentStep: 0,
+            progress: 0,
+            element: null,
+            intervalId: null,
+            cancelled: false
+        };
+
+        this.activeTimers.set(timerId, timer);
+        this.createProgressElement(timer);
+        this.startTimer(timer);
+
+        return timerId;
+    }
+
+    // Atualizar progresso
+    update(timerId, options = {}) {
+        const timer = this.activeTimers.get(timerId);
+        if (!timer || timer.cancelled) return;
+
+        if (options.message) {
+            const messageEl = timer.element.querySelector('.progress-message');
+            if (messageEl) messageEl.textContent = options.message;
+        }
+
+        if (options.progress !== undefined) {
+            timer.progress = Math.max(0, Math.min(100, options.progress));
+            this.updateProgressBar(timer);
+        }
+
+        if (options.currentStep !== undefined) {
+            timer.currentStep = options.currentStep;
+            this.updateSteps(timer);
+        }
+
+        if (options.nextStep) {
+            this.nextStep(timerId, options.nextStep);
+        }
+    }
+
+    // Avançar para próximo passo
+    nextStep(timerId, stepMessage = null) {
+        const timer = this.activeTimers.get(timerId);
+        if (!timer || timer.cancelled) return;
+
+        if (timer.config.steps.length > 0) {
+            // Marcar passo atual como concluído
+            if (timer.currentStep < timer.config.steps.length) {
+                timer.config.steps[timer.currentStep].status = 'completed';
+            }
+
+            // Avançar para próximo passo
+            timer.currentStep++;
+            if (timer.currentStep < timer.config.steps.length) {
+                timer.config.steps[timer.currentStep].status = 'active';
+                if (stepMessage) {
+                    timer.config.steps[timer.currentStep].text = stepMessage;
+                }
+            }
+
+            this.updateSteps(timer);
+        }
+
+        // Calcular progresso baseado nos passos
+        if (timer.config.steps.length > 0) {
+            timer.progress = (timer.currentStep / timer.config.steps.length) * 100;
+            this.updateProgressBar(timer);
+        }
+    }
+
+    // Finalizar temporizador
+    complete(timerId, options = {}) {
+        const timer = this.activeTimers.get(timerId);
+        if (!timer) return;
+
+        // Marcar todos os passos como concluídos
+        timer.config.steps.forEach(step => step.status = 'completed');
+        timer.progress = 100;
+        this.updateSteps(timer);
+        this.updateProgressBar(timer);
+
+        // Mostrar mensagem de sucesso
+        const messageEl = timer.element.querySelector('.progress-message');
+        if (messageEl) {
+            messageEl.textContent = options.message || 'Concluído com sucesso!';
+            messageEl.style.color = '#27ae60';
+        }
+
+        // Remover após delay
+        setTimeout(() => {
+            this.remove(timerId);
+        }, options.delay || 1500);
+    }
+
+    // Remover temporizador
+    remove(timerId) {
+        const timer = this.activeTimers.get(timerId);
+        if (!timer) return;
+
+        if (timer.intervalId) {
+            clearInterval(timer.intervalId);
+        }
+
+        if (timer.element && timer.element.parentNode) {
+            timer.element.parentNode.removeChild(timer.element);
+        }
+
+        if (this.currentOverlay === timer.element) {
+            this.currentOverlay = null;
+        }
+
+        this.activeTimers.delete(timerId);
+    }
+
+    // Cancelar temporizador
+    cancel(timerId) {
+        const timer = this.activeTimers.get(timerId);
+        if (!timer) return;
+
+        timer.cancelled = true;
+        
+        if (timer.config.onCancel) {
+            timer.config.onCancel();
+        }
+
+        this.remove(timerId);
+    }
+
+    // Criar elemento visual do progresso
+    createProgressElement(timer) {
+        const overlay = document.createElement('div');
+        overlay.className = 'progress-overlay';
+
+        const container = document.createElement('div');
+        container.className = 'progress-container';
+
+        let html = `
+            <div class="progress-title">${timer.config.title}</div>
+            <div class="progress-message">${timer.config.message}</div>
+        `;
+
+        if (timer.config.showSpinner) {
+            html += '<div class="progress-spinner"></div>';
+        }
+
+        if (timer.config.showProgressBar) {
+            html += `
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: ${timer.progress}%"></div>
+                </div>
+            `;
+        }
+
+        if (timer.config.showTimer) {
+            html += '<div class="progress-timer">Tempo estimado: <span class="timer-display">--:--</span></div>';
+        }
+
+        if (timer.config.steps.length > 0) {
+            html += '<div class="progress-steps">';
+            timer.config.steps.forEach((step, index) => {
+                const status = index === 0 ? 'active' : 'pending';
+                step.status = status;
+                html += `
+                    <div class="progress-step ${status}" data-step="${index}">
+                        <div class="progress-step-icon">${index + 1}</div>
+                        <span>${step.text}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        if (timer.config.cancelable) {
+            html += `<button class="progress-cancel-btn" onclick="progressTimer.cancel('${timer.id}')">Cancelar</button>`;
+        }
+
+        container.innerHTML = html;
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+
+        timer.element = overlay;
+        this.currentOverlay = overlay;
+    }
+
+    // Iniciar cronômetro
+    startTimer(timer) {
+        if (!timer.config.showTimer) return;
+
+        timer.intervalId = setInterval(() => {
+            if (timer.cancelled) {
+                clearInterval(timer.intervalId);
+                return;
+            }
+
+            const elapsed = (Date.now() - timer.startTime) / 1000;
+            const remaining = Math.max(0, timer.config.estimatedTime - elapsed);
+            
+            const minutes = Math.floor(remaining / 60);
+            const seconds = Math.floor(remaining % 60);
+            const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const timerEl = timer.element.querySelector('.timer-display');
+            if (timerEl) {
+                timerEl.textContent = timeDisplay;
+            }
+
+            // Auto-incrementar progresso baseado no tempo se não houver passos
+            if (timer.config.steps.length === 0 && timer.config.showProgressBar) {
+                const timeProgress = (elapsed / timer.config.estimatedTime) * 100;
+                timer.progress = Math.min(95, timeProgress); // Não chegar a 100% automaticamente
+                this.updateProgressBar(timer);
+            }
+        }, 1000);
+    }
+
+    // Atualizar barra de progresso
+    updateProgressBar(timer) {
+        const progressBar = timer.element.querySelector('.progress-bar-fill');
+        if (progressBar) {
+            progressBar.style.width = `${timer.progress}%`;
+        }
+    }
+
+    // Atualizar passos
+    updateSteps(timer) {
+        timer.config.steps.forEach((step, index) => {
+            const stepEl = timer.element.querySelector(`[data-step="${index}"]`);
+            if (stepEl) {
+                stepEl.className = `progress-step ${step.status}`;
+                const icon = stepEl.querySelector('.progress-step-icon');
+                if (step.status === 'completed' && icon) {
+                    icon.innerHTML = '✓';
+                }
+            }
+        });
+    }
+
+    // Gerar ID único
+    generateId() {
+        return 'progress_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+    }
+
+    // Criar progresso inline (para operações menores)
+    createInline(element, message = 'Carregando...') {
+        const progressEl = document.createElement('div');
+        progressEl.className = 'inline-progress';
+        progressEl.innerHTML = `
+            <div class="spinner-small"></div>
+            <span>${message}</span>
+        `;
+        
+        if (element.parentNode) {
+            element.parentNode.insertBefore(progressEl, element.nextSibling);
+        }
+        
+        return progressEl;
+    }
+
+    // Remover progresso inline
+    removeInline(progressElement) {
+        if (progressElement && progressElement.parentNode) {
+            progressElement.parentNode.removeChild(progressElement);
+        }
+    }
+}
+
+// Instância global do gerenciador de progresso
+const progressTimer = new ProgressTimer();
+
 class SistemaFrequencia {
     constructor() {
-        this.apiUrl = 'http://localhost:3000/api';
+        // Usar API relativa para funcionar em produção
+        this.apiUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api' 
+            : '/api';
         this.pessoas = [];
+        this.pessoasEncontradas = [];
         this.frequencias = [];
         this.pessoaSelecionada = null;
         this.init();
         this.carregarPessoas();
+    }
+
+    // Obter headers com token de autenticação
+    getAuthHeaders() {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
     }
 
     init() {
@@ -55,17 +366,6 @@ class SistemaFrequencia {
             e.target.value = value;
         });
 
-        // Máscara para CEP e busca automática
-        document.getElementById('cep').addEventListener('input', (e) => {
-            let value = e.target.value.replace(/\D/g, '');
-            value = value.replace(/(\d{5})(\d)/, '$1-$2');
-            e.target.value = value;
-            
-            if (value.length === 9) {
-                this.buscarCEP(value.replace('-', ''));
-            }
-        });
-
         // Máscara para Estado (2 caracteres maiúsculos)
         document.getElementById('estado').addEventListener('input', (e) => {
             let value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
@@ -73,20 +373,31 @@ class SistemaFrequencia {
             e.target.value = value;
         });
 
+        // Controle de estados e cidades
+        this.setupEstadosCidades();
+        
+        // Definir São Paulo como padrão
+        document.getElementById('estado').value = 'SP';
+        this.carregarCidades('cidade', 'SP', estadosCidades);
+
+
+
         // Validação em tempo real
-        const campos = ['nome', 'cpf', 'nascimento', 'sexo', 'cep', 'rua', 'numero', 'bairro', 'cidade', 'estado', 'telefone', 'email'];
+        const campos = ['nome', 'cpf', 'nascimento', 'religiao', 'cidade', 'estado', 'telefone', 'email'];
         campos.forEach(campoId => {
             const campo = document.getElementById(campoId);
-            campo.addEventListener('blur', () => {
-                this.validarCampo(campo);
-            });
-            campo.addEventListener('input', () => {
-                if (campo.classList.contains('error')) {
-                    campo.classList.remove('error');
-                    const errorMsg = campo.parentNode.querySelector('.error-message');
-                    if (errorMsg) errorMsg.remove();
-                }
-            });
+            if (campo) {
+                campo.addEventListener('blur', () => {
+                    this.validarCampo(campo);
+                });
+                campo.addEventListener('input', () => {
+                    if (campo.classList.contains('error')) {
+                        campo.classList.remove('error');
+                        const errorMsg = campo.parentNode.querySelector('.error-message');
+                        if (errorMsg) errorMsg.remove();
+                    }
+                });
+            }
         });
     }
 
@@ -97,25 +408,36 @@ class SistemaFrequencia {
 
         const pessoa = {
             nome: document.getElementById('nome').value.trim(),
-            cpf: document.getElementById('cpf').value.trim(),
-            nascimento: document.getElementById('nascimento').value,
-            sexo: document.getElementById('sexo').value,
-            endereco: {
-                cep: document.getElementById('cep').value.trim(),
-                rua: document.getElementById('rua').value.trim(),
-                numero: document.getElementById('numero').value.trim(),
-                complemento: document.getElementById('complemento').value.trim(),
-                bairro: document.getElementById('bairro').value.trim(),
-                cidade: document.getElementById('cidade').value.trim(),
-                estado: document.getElementById('estado').value.trim()
-            },
-            contato: {
-                telefone: document.getElementById('telefone').value.trim(),
-                email: document.getElementById('email').value.trim()
-            }
+            cpf: document.getElementById('cpf').value.trim() || null,
+            nascimento: document.getElementById('nascimento').value || null,
+            religiao: document.getElementById('religiao').value || null,
+            cidade: document.getElementById('cidade').value.trim() || null,
+            estado: document.getElementById('estado').value.trim() || null,
+            telefone: document.getElementById('telefone').value.trim() || null,
+            email: document.getElementById('email').value.trim() || null,
+            indicacao: document.getElementById('indicacao').value || null
         };
 
+        // Criar temporizador de progresso para cadastro
+        const timerId = progressTimer.create({
+            title: 'Cadastrando Pessoa',
+            message: 'Validando e salvando dados...',
+            estimatedTime: 5,
+            steps: [
+                { text: 'Validando dados' },
+                { text: 'Enviando para servidor' },
+                { text: 'Salvando no banco de dados' }
+            ]
+        });
+
         try {
+            // Simular progresso de validação
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
+            progressTimer.nextStep(timerId);
+
             const response = await fetch(`${this.apiUrl}/pessoas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -123,15 +445,25 @@ class SistemaFrequencia {
             });
             
             if (response.ok) {
-                this.mostrarMensagem('Pessoa cadastrada com sucesso!');
+                progressTimer.update(timerId, { message: 'Finalizando cadastro...' });
+                progressTimer.nextStep(timerId);
+                
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                progressTimer.complete(timerId, { 
+                    message: 'Pessoa cadastrada com sucesso!' 
+                });
+                
                 document.getElementById('formCadastro').reset();
                 this.limparErros();
                 this.carregarPessoas();
             } else {
                 const error = await response.json();
+                progressTimer.remove(timerId);
                 alert(error.error);
             }
         } catch (error) {
+            progressTimer.remove(timerId);
             alert('Erro ao cadastrar pessoa');
         }
     }
@@ -141,119 +473,346 @@ class SistemaFrequencia {
         buscaPessoa.addEventListener('input', (e) => {
             this.buscarPessoa(e.target.value);
         });
+        buscaPessoa.addEventListener('keyup', (e) => {
+            this.buscarPessoa(e.target.value);
+        });
 
         document.getElementById('marcarFrequencia').addEventListener('click', () => {
             this.marcarFrequencia();
+        });
+
+        document.getElementById('atualizarPessoa').addEventListener('click', () => {
+            this.atualizarPessoa();
+        });
+
+
+
+        // Controlar exibição de campos de senha baseado no tipo
+        document.querySelectorAll('input[name="tipoPresenca"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const senhasNormais = document.getElementById('senhasNormais');
+                const senhasPet = document.getElementById('senhasPet');
+                
+                if (radio.value === 'pet') {
+                    senhasNormais.style.display = 'none';
+                    senhasPet.style.display = 'block';
+                } else {
+                    senhasNormais.style.display = 'block';
+                    senhasPet.style.display = 'none';
+                }
+            });
         });
 
         // Definir data atual como padrão
         document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
     }
 
-    buscarPessoa(termo) {
+    async buscarPessoa(termo) {
         const resultado = document.getElementById('resultadoBusca');
         
-        if (termo.length < 2) {
+        if (!termo.trim()) {
             resultado.innerHTML = '';
             return;
         }
-
-        const pessoasEncontradas = this.pessoas.filter(pessoa => {
-            const nomeMatch = pessoa.nome.toLowerCase().includes(termo.toLowerCase());
-            const cpfLimpo = pessoa.cpf.replace(/[^\d]/g, '');
-            const termoLimpo = termo.replace(/[^\d]/g, '');
-            const cpfMatch = pessoa.cpf.includes(termo) || cpfLimpo.includes(termoLimpo);
-            return nomeMatch || cpfMatch;
-        });
-
-        resultado.innerHTML = pessoasEncontradas.map(pessoa => 
-            `<div class="pessoa-item" onclick="sistema.selecionarPessoa(${pessoa.id})">
-                ${pessoa.nome} - ${pessoa.cpf}
-            </div>`
-        ).join('');
+        
+        // Mostrar indicador inline de carregamento
+        const loadingEl = progressTimer.createInline(resultado, 'Buscando pessoas...');
+        resultado.innerHTML = '';
+        resultado.appendChild(loadingEl);
+        
+        try {
+            const response = await fetch(`${this.apiUrl}/pessoas?busca=${encodeURIComponent(termo)}`);
+            this.pessoasEncontradas = await response.json();
+            
+            // Remover indicador de carregamento
+            progressTimer.removeInline(loadingEl);
+            
+            resultado.innerHTML = this.pessoasEncontradas.slice(0, 10).map(pessoa => 
+                `<div class="pessoa-item" onclick="sistema.selecionarPessoa(${pessoa.id})">
+                    ${pessoa.nome} - ${pessoa.cpf || 'Sem CPF'}
+                </div>`
+            ).join('');
+        } catch (error) {
+            progressTimer.removeInline(loadingEl);
+            resultado.innerHTML = '<div class="pessoa-item">Erro na busca</div>';
+        }
     }
 
     selecionarPessoa(id) {
-        this.pessoaSelecionada = this.pessoas.find(p => p.id === id);
-        document.getElementById('nomePessoa').textContent = this.pessoaSelecionada.nome;
-        document.getElementById('formFrequencia').style.display = 'block';
-        document.getElementById('resultadoBusca').innerHTML = '';
-        document.getElementById('buscaPessoa').value = this.pessoaSelecionada.nome;
+        this.pessoaSelecionada = this.pessoasEncontradas.find(p => p.id === id);
         
-        // Definir data atual
-        document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+        if (this.pessoaSelecionada) {
+            // Preencher campos editáveis
+            document.getElementById('editNome').value = this.pessoaSelecionada.nome || '';
+            document.getElementById('editCpf').value = this.pessoaSelecionada.cpf || '';
+            document.getElementById('editNascimento').value = this.pessoaSelecionada.nascimento || '';
+            document.getElementById('editReligiao').value = this.pessoaSelecionada.religiao || '';
+            // Configurar estado e cidade
+            const estadoAtual = this.pessoaSelecionada.estado || '';
+            const cidadeAtual = this.pessoaSelecionada.cidade || '';
+            
+            document.getElementById('editEstado').value = estadoAtual;
+            if (estadoAtual) {
+                this.carregarCidades('editCidade', estadoAtual, estadosCidades);
+                setTimeout(() => {
+                    document.getElementById('editCidade').value = cidadeAtual;
+                }, 100);
+            }
+            document.getElementById('editTelefone').value = this.pessoaSelecionada.telefone || '';
+            document.getElementById('editEmail').value = this.pessoaSelecionada.email || '';
+            
+            document.getElementById('formFrequencia').style.display = 'block';
+            document.getElementById('resultadoBusca').innerHTML = '';
+            document.getElementById('buscaPessoa').value = this.pessoaSelecionada.nome;
+            document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+        }
     }
 
     async marcarFrequencia() {
         const tipoPresenca = document.querySelector('input[name="tipoPresenca"]:checked');
-        const numeroSenha = document.getElementById('numeroSenha').value;
         const dataFrequencia = document.getElementById('dataFrequencia').value;
 
-        if (!tipoPresenca || !numeroSenha || !dataFrequencia || !this.pessoaSelecionada) {
+        if (!tipoPresenca || !dataFrequencia || !this.pessoaSelecionada) {
             alert('Preencha todos os campos!');
             return;
         }
 
-        const frequencia = {
-            pessoaId: this.pessoaSelecionada.id,
-            tipo: tipoPresenca.value,
-            numeroSenha: parseInt(numeroSenha),
-            data: dataFrequencia
-        };
+        let frequencias = [];
+
+        if (tipoPresenca.value === 'pet') {
+            const senhaTutor = document.getElementById('senhaTutor').value;
+            const senhaPet = document.getElementById('senhaPet').value;
+            
+            if (!senhaTutor || !senhaPet) {
+                alert('Preencha as senhas do tutor e do pet!');
+                return;
+            }
+
+            // Criar duas frequências para pet
+            frequencias = [
+                {
+                    pessoaId: this.pessoaSelecionada.id,
+                    tipo: 'pet_tutor',
+                    numeroSenha: parseInt(senhaTutor),
+                    data: dataFrequencia
+                },
+                {
+                    pessoaId: this.pessoaSelecionada.id,
+                    tipo: 'pet_animal',
+                    numeroSenha: parseInt(senhaPet),
+                    data: dataFrequencia
+                }
+            ];
+        } else {
+            const numeroSenha = document.getElementById('numeroSenha').value;
+            
+            if (!numeroSenha) {
+                alert('Preencha o número da senha!');
+                return;
+            }
+
+            frequencias = [{
+                pessoaId: this.pessoaSelecionada.id,
+                tipo: tipoPresenca.value,
+                numeroSenha: parseInt(numeroSenha),
+                data: dataFrequencia
+            }];
+        }
+
+        // Criar temporizador de progresso para marcar frequência
+        const timerId = progressTimer.create({
+            title: 'Marcando Frequência',
+            message: `Registrando presença de ${this.pessoaSelecionada.nome}...`,
+            estimatedTime: 3,
+            steps: [
+                { text: 'Validando dados' },
+                { text: 'Registrando frequência' },
+                { text: 'Finalizando' }
+            ]
+        });
 
         try {
-            const response = await fetch(`${this.apiUrl}/frequencias`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(frequencia)
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
+            progressTimer.nextStep(timerId);
+
+            // Registrar todas as frequências com token de autenticação
+            for (const freq of frequencias) {
+                const response = await fetch(`${this.apiUrl}/frequencias`, {
+                    method: 'POST',
+                    headers: this.getAuthHeaders(),
+                    body: JSON.stringify(freq)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Erro ao registrar frequência');
+                }
+            }
+            
+            progressTimer.update(timerId, { message: 'Limpando formulário...' });
+            progressTimer.nextStep(timerId);
+            
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            progressTimer.complete(timerId, { 
+                message: 'Frequência registrada com sucesso!' 
             });
             
-            if (response.ok) {
-                this.mostrarMensagem('Frequência marcada com sucesso!');
-                
-                // Limpar formulário
-                document.querySelector('input[name="tipoPresenca"]:checked').checked = false;
-                document.getElementById('numeroSenha').value = '';
-                document.getElementById('formFrequencia').style.display = 'none';
-                document.getElementById('buscaPessoa').value = '';
-                this.pessoaSelecionada = null;
-            } else {
-                alert('Erro ao registrar frequência');
-            }
+            // Limpar formulário
+            document.querySelector('input[name="tipoPresenca"]:checked').checked = false;
+            document.getElementById('numeroSenha').value = '';
+            document.getElementById('senhaTutor').value = '';
+            document.getElementById('senhaPet').value = '';
+            document.getElementById('senhasNormais').style.display = 'block';
+            document.getElementById('senhasPet').style.display = 'none';
+            document.getElementById('formFrequencia').style.display = 'none';
+            document.getElementById('buscaPessoa').value = '';
+            this.pessoaSelecionada = null;
         } catch (error) {
-            alert('Erro ao registrar frequência');
+            progressTimer.remove(timerId);
+            alert('Erro ao registrar frequência: ' + error.message);
         }
     }
 
     setupRelatorio() {
-        document.getElementById('gerarRelatorio').addEventListener('click', () => {
-            this.gerarRelatorio();
+        const btnGerar = document.getElementById('gerarRelatorio');
+        if (btnGerar) {
+            console.log('Botão gerar relatório encontrado');
+            btnGerar.addEventListener('click', () => {
+                console.log('Botão gerar relatório clicado');
+                this.gerarRelatorio();
+            });
+        } else {
+            console.error('Botão gerar relatório não encontrado!');
+        }
+
+        const btnCidades = document.getElementById('relatorioCidades');
+        if (btnCidades) {
+            btnCidades.addEventListener('click', () => {
+                this.gerarRelatorioCidades();
+            });
+        }
+
+        const btnMensal = document.getElementById('relatorioMensal');
+        if (btnMensal) {
+            btnMensal.addEventListener('click', () => {
+                this.gerarRelatorioMensal();
+            });
+        }
+
+        document.getElementById('exportarCidadesPDF').addEventListener('click', () => {
+            this.exportarCidadesPDF();
+        });
+
+        document.getElementById('exportarMensalPDF').addEventListener('click', () => {
+            this.exportarMensalPDF();
+        });
+
+        document.getElementById('exportarCSV').addEventListener('click', () => {
+            this.exportarCSV();
+        });
+
+        document.getElementById('exportarXLS').addEventListener('click', () => {
+            this.exportarXLS();
+        });
+
+        document.getElementById('exportarPDF').addEventListener('click', () => {
+            this.exportarPDF();
         });
     }
 
     async gerarRelatorio() {
+        const resultado = document.getElementById('relatorioResultado');
+        
         const dataInicio = document.getElementById('dataInicio').value;
         const dataFim = document.getElementById('dataFim').value;
         const filtroTipo = document.getElementById('filtroTipo').value;
 
-        const params = new URLSearchParams();
-        if (dataInicio) params.append('dataInicio', dataInicio);
-        if (dataFim) params.append('dataFim', dataFim);
-        if (filtroTipo) params.append('tipo', filtroTipo);
+        // Criar temporizador de progresso para geração de relatório
+        const timerId = progressTimer.create({
+            title: 'Gerando Relatório',
+            message: 'Buscando dados de frequência...',
+            estimatedTime: 8,
+            steps: [
+                { text: 'Preparando filtros' },
+                { text: 'Consultando banco de dados' },
+                { text: 'Processando dados' },
+                { text: 'Formatando relatório' },
+                { text: 'Exibindo resultados' }
+            ]
+        });
 
         try {
-            const response = await fetch(`${this.apiUrl}/frequencias?${params}`);
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const params = new URLSearchParams();
+            if (dataInicio) params.append('dataInicio', dataInicio);
+            if (dataFim) params.append('dataFim', dataFim);
+            if (filtroTipo) params.append('tipo', filtroTipo);
+
+            const url = `${this.apiUrl}/frequencias?${params}`;
+
+            progressTimer.update(timerId, { message: 'Enviando consulta ao servidor...' });
+            progressTimer.nextStep(timerId);
+
+            const response = await fetch(url, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao buscar relatório');
+            }
+            
+            progressTimer.update(timerId, { message: 'Processando dados recebidos...' });
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             const frequencias = await response.json();
+            
+            progressTimer.update(timerId, { message: 'Formatando relatório...' });
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            
             this.exibirRelatorio(frequencias);
+            this.dadosRelatorio = frequencias;
+            
+            progressTimer.update(timerId, { message: 'Configurando opções de exportação...' });
+            progressTimer.nextStep(timerId);
+            
+            // Mostrar botões de exportação com verificação de null
+            const exportCSVBtn = document.getElementById('exportarCSV');
+            const exportXLSBtn = document.getElementById('exportarXLS');
+            const exportPDFBtn = document.getElementById('exportarPDF');
+            
+            if (exportCSVBtn) exportCSVBtn.style.display = 'inline-block';
+            if (exportXLSBtn) exportXLSBtn.style.display = 'inline-block';
+            if (exportPDFBtn) exportPDFBtn.style.display = 'inline-block';
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            progressTimer.complete(timerId, { 
+                message: `Relatório gerado com ${frequencias.length} registros!` 
+            });
+            
         } catch (error) {
-            alert('Erro ao gerar relatório');
+            console.error('ERRO COMPLETO:', error);
+            progressTimer.remove(timerId);
+            resultado.innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+            alert('Erro ao gerar relatório: ' + error.message);
         }
     }
 
     exibirRelatorio(frequencias) {
         const resultado = document.getElementById('relatorioResultado');
         
-        if (frequencias.length === 0) {
+        console.log('Exibindo relatório com', frequencias.length, 'registros');
+        
+        if (!frequencias || frequencias.length === 0) {
             resultado.innerHTML = '<p>Nenhuma frequência encontrada para os filtros selecionados.</p>';
             return;
         }
@@ -262,20 +821,58 @@ class SistemaFrequencia {
             comum: 'Comum',
             hospital: 'Hospital',
             hospital_acompanhante: 'Hospital Acompanhante',
-            pet: 'Pet'
+            crianca: 'Criança',
+            pet: 'Pet',
+            pet_tutor: 'Pet - Tutor',
+            pet_animal: 'Pet - Animal'
         };
+
+        // Contar senhas por tipo
+        const contadores = {
+            comum: 0,
+            hospital: 0,
+            hospital_acompanhante: 0,
+            crianca: 0,
+            pet_tutor: 0,
+            pet_animal: 0
+        };
+
+        frequencias.forEach(freq => {
+            const tipoLower = freq.tipo.toLowerCase();
+            if (contadores.hasOwnProperty(tipoLower)) {
+                contadores[tipoLower]++;
+            }
+        });
+
+        const resumo = `
+            <div style="background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                <h4>Resumo por Tipo:</h4>
+                <p><strong>Comum:</strong> ${contadores.comum} senhas</p>
+                <p><strong>Hospital:</strong> ${contadores.hospital} senhas</p>
+                <p><strong>Hospital Acompanhante:</strong> ${contadores.hospital_acompanhante} senhas</p>
+                <p><strong>Criança:</strong> ${contadores.crianca} senhas</p>
+                <p><strong>Pet - Tutor:</strong> ${contadores.pet_tutor} senhas</p>
+                <p><strong>Pet - Animal:</strong> ${contadores.pet_animal} senhas</p>
+            </div>
+        `;
 
         resultado.innerHTML = `
             <h3>Relatório de Frequência (${frequencias.length} registros)</h3>
-            ${frequencias.map(freq => `
-                <div class="relatorio-item tipo-${freq.tipo}">
-                    <strong>${freq.nome}</strong><br>
-                    Tipo: ${tipoLabels[freq.tipo]}<br>
-                    Senha: ${freq.numero_senha || 'N/A'}<br>
-                    Data: ${freq.data.split('-').reverse().join('/')}<br>
-                    Registrado em: ${new Date(freq.created_at).toLocaleString('pt-BR')}
-                </div>
-            `).join('')}
+            ${resumo}
+            ${frequencias.map(freq => {
+                const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
+                const dataRegistro = freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A';
+                
+                return `
+                    <div class="relatorio-item tipo-${freq.tipo}">
+                        <strong>${freq.nome || 'Nome não encontrado'}</strong><br>
+                        Tipo: ${tipoLabels[freq.tipo] || freq.tipo}<br>
+                        Senha: ${freq.numero_senha || 'N/A'}<br>
+                        Data: ${dataFormatada}<br>
+                        Registrado em: ${dataRegistro}
+                    </div>
+                `;
+            }).join('')}
         `;
     }
 
@@ -283,55 +880,40 @@ class SistemaFrequencia {
         this.limparErros();
         let valido = true;
         
-        const campos = [
-            { id: 'nome', nome: 'Nome' },
-            { id: 'cpf', nome: 'CPF' },
-            { id: 'nascimento', nome: 'Data de nascimento' },
-            { id: 'sexo', nome: 'Sexo' },
-            { id: 'cep', nome: 'CEP' },
-            { id: 'rua', nome: 'Rua' },
-            { id: 'numero', nome: 'Número' },
-            { id: 'bairro', nome: 'Bairro' },
-            { id: 'cidade', nome: 'Cidade' },
-            { id: 'estado', nome: 'Estado' },
-            { id: 'telefone', nome: 'Telefone' },
-            { id: 'email', nome: 'E-mail' }
-        ];
+        // Apenas nome é obrigatório
+        const nome = document.getElementById('nome').value.trim();
+        if (!nome) {
+            this.mostrarErro(document.getElementById('nome'), 'Nome é obrigatório');
+            valido = false;
+        } else if (nome.length < 3) {
+            this.mostrarErro(document.getElementById('nome'), 'Nome deve ter pelo menos 3 caracteres');
+            valido = false;
+        }
 
-        campos.forEach(campo => {
-            const elemento = document.getElementById(campo.id);
-            const valor = elemento.value.trim();
-            
-            if (!valor) {
-                this.mostrarErro(elemento, `${campo.nome} é obrigatório`);
-                valido = false;
-            } else {
-                // Validação mínimo 3 caracteres para campos de texto
-                if (['nome', 'rua', 'bairro', 'cidade'].includes(campo.id) && valor.length < 3) {
-                    this.mostrarErro(elemento, `${campo.nome} deve ter pelo menos 3 caracteres`);
-                    valido = false;
-                }
-                // Validação estado deve ter 2 caracteres
-                if (campo.id === 'estado' && valor.length !== 2) {
-                    this.mostrarErro(elemento, 'Estado deve ter exatamente 2 caracteres');
-                    valido = false;
-                }
-                // Validação data não futura
-                if (campo.id === 'nascimento' && new Date(valor) > new Date()) {
-                    this.mostrarErro(elemento, 'Data de nascimento não pode ser futura');
-                    valido = false;
-                }
-                // Validações específicas
-                if (campo.id === 'cpf' && !this.validarCPF(valor)) {
-                    this.mostrarErro(elemento, 'CPF inválido');
-                    valido = false;
-                }
-                if (campo.id === 'email' && !this.validarEmail(valor)) {
-                    this.mostrarErro(elemento, 'E-mail inválido');
-                    valido = false;
-                }
-            }
-        });
+        // Validações opcionais
+        const cpf = document.getElementById('cpf').value.trim();
+        if (cpf && !this.validarCPF(cpf)) {
+            this.mostrarErro(document.getElementById('cpf'), 'CPF inválido');
+            valido = false;
+        }
+
+        const email = document.getElementById('email').value.trim();
+        if (email && !this.validarEmail(email)) {
+            this.mostrarErro(document.getElementById('email'), 'E-mail inválido');
+            valido = false;
+        }
+
+        const nascimento = document.getElementById('nascimento').value;
+        if (nascimento && new Date(nascimento) > new Date()) {
+            this.mostrarErro(document.getElementById('nascimento'), 'Data de nascimento não pode ser futura');
+            valido = false;
+        }
+
+        const estado = document.getElementById('estado').value.trim();
+        if (estado && estado.length !== 2) {
+            this.mostrarErro(document.getElementById('estado'), 'Estado deve ter exatamente 2 caracteres');
+            valido = false;
+        }
 
         return valido;
     }
@@ -382,11 +964,7 @@ class SistemaFrequencia {
             nome: 'Nome',
             cpf: 'CPF',
             nascimento: 'Data de nascimento',
-            sexo: 'Sexo',
-            cep: 'CEP',
-            rua: 'Rua',
-            numero: 'Número',
-            bairro: 'Bairro',
+            religiao: 'Religião',
             cidade: 'Cidade',
             estado: 'Estado',
             telefone: 'Telefone',
@@ -398,37 +976,41 @@ class SistemaFrequencia {
         const errorMsg = elemento.parentNode.querySelector('.error-message');
         if (errorMsg) errorMsg.remove();
 
-        if (!valor) {
-            this.mostrarErro(elemento, `${nomesCampos[elemento.id]} é obrigatório`);
+        // Apenas nome é obrigatório
+        if (elemento.id === 'nome' && !valor) {
+            this.mostrarErro(elemento, 'Nome é obrigatório');
             return false;
         }
 
-        // Validação mínimo 3 caracteres
-        if (['nome', 'rua', 'bairro', 'cidade'].includes(elemento.id) && valor.length < 3) {
-            this.mostrarErro(elemento, `${nomesCampos[elemento.id]} deve ter pelo menos 3 caracteres`);
-            return false;
-        }
+        // Validações apenas se campo preenchido
+        if (valor) {
+            // Validação mínimo 3 caracteres
+            if (['nome', 'cidade'].includes(elemento.id) && valor.length < 3) {
+                this.mostrarErro(elemento, `${nomesCampos[elemento.id]} deve ter pelo menos 3 caracteres`);
+                return false;
+            }
 
-        // Validação estado deve ter 2 caracteres
-        if (elemento.id === 'estado' && valor.length !== 2) {
-            this.mostrarErro(elemento, 'Estado deve ter exatamente 2 caracteres');
-            return false;
-        }
+            // Validação estado deve ter 2 caracteres
+            if (elemento.id === 'estado' && valor.length !== 2) {
+                this.mostrarErro(elemento, 'Estado deve ter exatamente 2 caracteres');
+                return false;
+            }
 
-        // Validação data não futura
-        if (elemento.id === 'nascimento' && new Date(valor) > new Date()) {
-            this.mostrarErro(elemento, 'Data de nascimento não pode ser futura');
-            return false;
-        }
+            // Validação data não futura
+            if (elemento.id === 'nascimento' && new Date(valor) > new Date()) {
+                this.mostrarErro(elemento, 'Data de nascimento não pode ser futura');
+                return false;
+            }
 
-        // Validações específicas
-        if (elemento.id === 'cpf' && !this.validarCPF(valor)) {
-            this.mostrarErro(elemento, 'CPF inválido');
-            return false;
-        }
-        if (elemento.id === 'email' && !this.validarEmail(valor)) {
-            this.mostrarErro(elemento, 'E-mail inválido');
-            return false;
+            // Validações específicas
+            if (elemento.id === 'cpf' && !this.validarCPF(valor)) {
+                this.mostrarErro(elemento, 'CPF inválido');
+                return false;
+            }
+            if (elemento.id === 'email' && !this.validarEmail(valor)) {
+                this.mostrarErro(elemento, 'E-mail inválido');
+                return false;
+            }
         }
 
         return true;
@@ -436,33 +1018,16 @@ class SistemaFrequencia {
 
     async carregarPessoas() {
         try {
+            console.log('Carregando pessoas...');
             const response = await fetch(`${this.apiUrl}/pessoas`);
             this.pessoas = await response.json();
+            console.log('Pessoas carregadas:', this.pessoas.length);
         } catch (error) {
             console.error('Erro ao carregar pessoas:', error);
         }
     }
 
-    async buscarCEP(cep) {
-        try {
-            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-            const data = await response.json();
-            
-            if (!data.erro) {
-                document.getElementById('rua').value = data.logradouro || '';
-                document.getElementById('bairro').value = data.bairro || '';
-                document.getElementById('cidade').value = data.localidade || '';
-                document.getElementById('estado').value = data.uf || '';
-                
-                // Focar no campo número
-                document.getElementById('numero').focus();
-            } else {
-                alert('CEP não encontrado');
-            }
-        } catch (error) {
-            console.error('Erro ao buscar CEP:', error);
-        }
-    }
+
 
     mostrarMensagem(texto) {
         const mensagem = document.createElement('div');
@@ -475,7 +1040,571 @@ class SistemaFrequencia {
         }, 3000);
     }
 
-    // Método removido - dados salvos no backend
+    async gerarRelatorioCidades() {
+        const resultado = document.getElementById('relatorioResultado');
+        
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+        const filtroTipo = document.getElementById('filtroTipo').value;
+
+        // Criar temporizador de progresso para relatório por cidades
+        const timerId = progressTimer.create({
+            title: 'Relatório por Cidades',
+            message: 'Analisando distribuição geográfica...',
+            estimatedTime: 6,
+            steps: [
+                { text: 'Preparando consulta' },
+                { text: 'Buscando frequências' },
+                { text: 'Agrupando por cidades' },
+                { text: 'Criando gráficos' },
+                { text: 'Finalizando relatório' }
+            ]
+        });
+
+        try {
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const params = new URLSearchParams();
+            if (dataInicio) params.append('dataInicio', dataInicio);
+            if (dataFim) params.append('dataFim', dataFim);
+            if (filtroTipo) params.append('tipo', filtroTipo);
+            
+            progressTimer.update(timerId, { message: 'Consultando banco de dados...' });
+            progressTimer.nextStep(timerId);
+
+            const response = await fetch(`${this.apiUrl}/frequencias?${params}`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao buscar frequências');
+            }
+            
+            const frequencias = await response.json();
+            
+            progressTimer.update(timerId, { message: 'Processando dados por cidade...' });
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            
+            // Usar dados já retornados pela API (cidade e estado já vêm no JOIN)
+            const pessoasUnicas = new Map();
+            const cidades = {};
+            
+            for (const freq of frequencias) {
+                if (!pessoasUnicas.has(freq.pessoa_id)) {
+                    pessoasUnicas.set(freq.pessoa_id, true);
+                    const cidade = freq.cidade || 'Não informado';
+                    cidades[cidade] = (cidades[cidade] || 0) + 1;
+                }
+            }
+            
+            const cidadesOrdenadas = Object.entries(cidades)
+                .sort(([,a], [,b]) => b - a);
+            
+            const top10 = cidadesOrdenadas.slice(0, 10);
+            
+            progressTimer.update(timerId, { message: 'Formatando relatório...' });
+            progressTimer.nextStep(timerId);
+            
+            resultado.innerHTML = `
+                <h3>Relatório por Cidades - Pessoas com Frequência (${pessoasUnicas.size} pessoas)</h3>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #f5f5f5; padding: 15px; border-radius: 5px;">
+                        <h4>Top 10 Cidades:</h4>
+                        ${top10.map(([cidade, quantidade]) => 
+                            `<p>${quantidade} ${cidade}</p>`
+                        ).join('')}
+                    </div>
+                    <div style="flex: 1;">
+                        <canvas id="graficoCidades" width="400" height="400"></canvas>
+                    </div>
+                </div>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
+                    <h4>Todas as Cidades:</h4>
+                    ${cidadesOrdenadas.map(([cidade, quantidade]) => 
+                        `<p>${quantidade} ${cidade}</p>`
+                    ).join('')}
+                </div>
+            `;
+            
+            progressTimer.update(timerId, { message: 'Criando gráfico...' });
+            progressTimer.nextStep(timerId);
+            
+            // Criar gráfico de pizza
+            setTimeout(() => {
+                const canvasElement = document.getElementById('graficoCidades');
+                if (canvasElement) {
+                    const ctx = canvasElement.getContext('2d');
+                        new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: top10.map(([cidade]) => cidade),
+                                datasets: [{
+                                    data: top10.map(([, quantidade]) => quantidade),
+                                    backgroundColor: [
+                                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                                        '#4BC0C0', '#FF6384'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom'
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Top 10 Cidades'
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }, 100);
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Salvar dados para exportação
+            this.dadosCidades = cidadesOrdenadas;
+            const exportBtn = document.getElementById('exportarCidadesPDF');
+            if (exportBtn) {
+                exportBtn.style.display = 'inline-block';
+            }
+            
+            progressTimer.complete(timerId, { 
+                message: `Relatório gerado com ${pessoasUnicas.size} pessoas de ${cidadesOrdenadas.length} cidades!` 
+            });
+            
+        } catch (error) {
+            progressTimer.remove(timerId);
+            resultado.innerHTML = '<p style="color: red;">Erro ao gerar relatório por cidades</p>';
+        }
+    }
+
+    exportarCSV() {
+        if (!this.dadosRelatorio) return;
+        
+        const tipoLabels = {
+            comum: 'Comum',
+            hospital: 'Hospital',
+            hospital_acompanhante: 'Hospital Acompanhante',
+            pet_tutor: 'Pet - Tutor',
+            pet_animal: 'Pet - Animal'
+        };
+        
+        let csv = 'Nome,Tipo,Senha,Data,Registrado em\n';
+        
+        this.dadosRelatorio.forEach(freq => {
+            const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
+            const dataRegistro = freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A';
+            
+            csv += `"${freq.nome}","${tipoLabels[freq.tipo]}","${freq.numero_senha}","${dataFormatada}","${dataRegistro}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'relatorio_frequencia.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    exportarXLS() {
+        if (!this.dadosRelatorio) return;
+        
+        const tipoLabels = {
+            comum: 'Comum',
+            hospital: 'Hospital',
+            hospital_acompanhante: 'Hospital Acompanhante',
+            crianca: 'Criança',
+            pet_tutor: 'Pet - Tutor',
+            pet_animal: 'Pet - Animal'
+        };
+        
+        const dados = this.dadosRelatorio.map(freq => ({
+            'Nome': freq.nome,
+            'Tipo': tipoLabels[freq.tipo],
+            'Senha': freq.numero_senha,
+            'Data': freq.data ? freq.data.split('-').reverse().join('/') : 'N/A',
+            'Registrado em': freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A'
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(dados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+        XLSX.writeFile(wb, 'relatorio_frequencia.xlsx');
+    }
+
+    exportarPDF() {
+        if (!this.dadosRelatorio) return;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Logo (se existir)
+        try {
+            const img = document.querySelector('.logo');
+            if (img && img.complete) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                ctx.drawImage(img, 0, 0);
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                doc.addImage(imgData, 'JPEG', 160, 10, 30, 15);
+            }
+        } catch (e) {
+            console.log('Logo não pôde ser adicionado');
+        }
+        
+        // Título
+        doc.setFontSize(16);
+        doc.text('Relatório de Frequência', 20, 20);
+        doc.setFontSize(10);
+        doc.text('Terra do Bugio', 20, 30);
+        
+        // Cabeçalho da tabela
+        doc.setFontSize(10);
+        let y = 45;
+        doc.text('Nome', 20, y);
+        doc.text('Tipo', 80, y);
+        doc.text('Senha', 130, y);
+        doc.text('Data', 160, y);
+        
+        // Linha do cabeçalho
+        doc.line(20, y + 2, 190, y + 2);
+        y += 10;
+        
+        // Dados
+        this.dadosRelatorio.forEach(freq => {
+            if (y > 280) {
+                doc.addPage();
+                y = 20;
+                // Repetir cabeçalho na nova página
+                doc.text('Nome', 20, y);
+                doc.text('Tipo', 80, y);
+                doc.text('Senha', 130, y);
+                doc.text('Data', 160, y);
+                doc.line(20, y + 2, 190, y + 2);
+                y += 10;
+            }
+            
+            const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
+            const tipoLabels = {
+                comum: 'Comum',
+                hospital: 'Hospital',
+                hospital_acompanhante: 'Hosp. Acomp.',
+                crianca: 'Criança',
+                pet_tutor: 'Pet - Tutor',
+                pet_animal: 'Pet - Animal'
+            };
+            
+            doc.text(freq.nome.substring(0, 25), 20, y);
+            doc.text(tipoLabels[freq.tipo] || freq.tipo, 80, y);
+            doc.text(freq.numero_senha.toString(), 130, y);
+            doc.text(dataFormatada, 160, y);
+            y += 8;
+        });
+        
+        doc.save('relatorio_frequencia.pdf');
+    }
+
+    async atualizarPessoa() {
+        if (!this.pessoaSelecionada) return;
+        
+        const dadosAtualizados = {
+            nome: document.getElementById('editNome').value.trim(),
+            cpf: document.getElementById('editCpf').value.trim() || null,
+            nascimento: document.getElementById('editNascimento').value || null,
+            religiao: document.getElementById('editReligiao').value || null,
+            cidade: document.getElementById('editCidade').value.trim() || null,
+            estado: document.getElementById('editEstado').value.trim() || null,
+            telefone: document.getElementById('editTelefone').value.trim() || null,
+            email: document.getElementById('editEmail').value.trim() || null,
+            observacao: this.pessoaSelecionada.observacao || null
+        };
+        
+        // Criar temporizador de progresso para atualização
+        const timerId = progressTimer.create({
+            title: 'Atualizando Dados',
+            message: `Salvando alterações de ${this.pessoaSelecionada.nome}...`,
+            estimatedTime: 3,
+            steps: [
+                { text: 'Validando alterações' },
+                { text: 'Enviando para servidor' },
+                { text: 'Salvando no banco' }
+            ]
+        });
+        
+        try {
+            progressTimer.nextStep(timerId);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            progressTimer.update(timerId, { message: 'Enviando dados atualizados...' });
+            progressTimer.nextStep(timerId);
+
+            const response = await fetch(`${this.apiUrl}/pessoas/${this.pessoaSelecionada.id}`, {
+                method: 'PUT',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(dadosAtualizados)
+            });
+            
+            if (response.ok) {
+                progressTimer.update(timerId, { message: 'Finalizando atualização...' });
+                progressTimer.nextStep(timerId);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                progressTimer.complete(timerId, { 
+                    message: 'Dados atualizados com sucesso!' 
+                });
+                
+                // Atualizar dados locais
+                Object.assign(this.pessoaSelecionada, dadosAtualizados);
+            } else {
+                const errorData = await response.json();
+                progressTimer.remove(timerId);
+                alert(errorData.error || 'Erro ao atualizar dados');
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar pessoa:', error);
+            progressTimer.remove(timerId);
+            alert('Erro ao atualizar dados');
+        }
+    }
+
+    async gerarRelatorioMensal() {
+        const resultado = document.getElementById('relatorioResultado');
+        resultado.innerHTML = '<p>Carregando...</p>';
+        
+        try {
+            const response = await fetch(`${this.apiUrl}/frequencias`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao buscar frequências');
+            }
+            
+            const frequencias = await response.json();
+            
+            // Contar frequências por mês
+            const meses = {
+                '01': { nome: 'Janeiro', count: 0 },
+                '02': { nome: 'Fevereiro', count: 0 },
+                '03': { nome: 'Março', count: 0 },
+                '04': { nome: 'Abril', count: 0 },
+                '05': { nome: 'Maio', count: 0 },
+                '06': { nome: 'Junho', count: 0 },
+                '07': { nome: 'Julho', count: 0 },
+                '08': { nome: 'Agosto', count: 0 },
+                '09': { nome: 'Setembro', count: 0 },
+                '10': { nome: 'Outubro', count: 0 },
+                '11': { nome: 'Novembro', count: 0 },
+                '12': { nome: 'Dezembro', count: 0 }
+            };
+            
+            frequencias.forEach(freq => {
+                if (freq.data) {
+                    const mes = freq.data.substring(5, 7); // Extrai o mês da data YYYY-MM-DD
+                    if (meses[mes]) {
+                        meses[mes].count++;
+                    }
+                }
+            });
+            
+            const dadosMeses = Object.entries(meses).map(([num, dados]) => [dados.nome, dados.count]);
+            
+            resultado.innerHTML = `
+                <h3>Relatório Mensal - Frequências por Mês (${frequencias.length} registros)</h3>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: #f5f5f5; padding: 15px; border-radius: 5px;">
+                        <h4>Frequências por Mês:</h4>
+                        ${dadosMeses.map(([mes, quantidade]) => 
+                            `<p><strong>${mes}:</strong> ${quantidade} frequências</p>`
+                        ).join('')}
+                    </div>
+                    <div style="flex: 1;">
+                        <canvas id="graficoMensal" width="400" height="400"></canvas>
+                    </div>
+                </div>
+            `;
+            
+            // Criar gráfico de pizza
+            setTimeout(() => {
+                const canvasElement = document.getElementById('graficoMensal');
+                if (canvasElement) {
+                    const ctx = canvasElement.getContext('2d');
+                        new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: dadosMeses.map(([mes]) => mes),
+                                datasets: [{
+                                    data: dadosMeses.map(([, quantidade]) => quantidade),
+                                    backgroundColor: [
+                                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                                        '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                                        '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom'
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Frequências por Mês do Ano'
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }, 100);
+            
+            // Salvar dados para exportação
+            this.dadosMensal = dadosMeses;
+            const exportMensalBtn = document.getElementById('exportarMensalPDF');
+            if (exportMensalBtn) {
+                exportMensalBtn.style.display = 'inline-block';
+            }
+        } catch (error) {
+            resultado.innerHTML = '<p style="color: red;">Erro ao gerar relatório mensal</p>';
+        }
+    }
+
+    exportarMensalPDF() {
+        if (!this.dadosMensal) return;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Logo
+        try {
+            const img = document.querySelector('.logo');
+            if (img && img.complete) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                ctx.drawImage(img, 0, 0);
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                doc.addImage(imgData, 'JPEG', 160, 10, 30, 15);
+            }
+        } catch (e) {
+            console.log('Logo não pôde ser adicionado');
+        }
+        
+        // Título
+        doc.setFontSize(16);
+        doc.text('Relatório Mensal', 20, 20);
+        doc.setFontSize(10);
+        doc.text('Terra do Bugio', 20, 30);
+        
+        // Cabeçalho da tabela
+        let y = 45;
+        doc.text('Mês', 20, y);
+        doc.text('Frequências', 120, y);
+        doc.line(20, y + 2, 150, y + 2);
+        y += 10;
+        
+        // Dados
+        this.dadosMensal.forEach(([mes, quantidade]) => {
+            doc.text(mes, 20, y);
+            doc.text(quantidade.toString(), 120, y);
+            y += 8;
+        });
+        
+        doc.save('relatorio_mensal.pdf');
+    }
+
+    exportarCidadesPDF() {
+        if (!this.dadosCidades) return;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Logo
+        try {
+            const img = document.querySelector('.logo');
+            if (img && img.complete) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                ctx.drawImage(img, 0, 0);
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                doc.addImage(imgData, 'JPEG', 160, 10, 30, 15);
+            }
+        } catch (e) {
+            console.log('Logo não pôde ser adicionado');
+        }
+        
+        // Título
+        doc.setFontSize(16);
+        doc.text('Relatório por Cidades', 20, 20);
+        doc.setFontSize(10);
+        doc.text('Terra do Bugio', 20, 30);
+        
+        // Cabeçalho da tabela
+        let y = 45;
+        doc.text('Cidade', 20, y);
+        doc.text('Quantidade', 120, y);
+        doc.line(20, y + 2, 150, y + 2);
+        y += 10;
+        
+        // Dados
+        this.dadosCidades.forEach(([cidade, quantidade]) => {
+            if (y > 280) {
+                doc.addPage();
+                y = 20;
+                doc.text('Cidade', 20, y);
+                doc.text('Quantidade', 120, y);
+                doc.line(20, y + 2, 150, y + 2);
+                y += 10;
+            }
+            
+            doc.text(cidade, 20, y);
+            doc.text(quantidade.toString(), 120, y);
+            y += 8;
+        });
+        
+        doc.save('relatorio_cidades.pdf');
+    }
+
+    setupEstadosCidades() {
+        // Evento para o select de estado no cadastro
+        document.getElementById('estado').addEventListener('change', (e) => {
+            this.carregarCidades('cidade', e.target.value, estadosCidades);
+        });
+
+        // Evento para o select de estado na edição
+        document.getElementById('editEstado').addEventListener('change', (e) => {
+            this.carregarCidades('editCidade', e.target.value, estadosCidades);
+        });
+    }
+
+    carregarCidades(selectId, estado, cidades) {
+        const selectCidade = document.getElementById(selectId);
+        selectCidade.innerHTML = '<option value="">Selecione a Cidade</option>';
+        
+        if (estado && cidades[estado]) {
+            cidades[estado].forEach(cidade => {
+                const option = document.createElement('option');
+                option.value = cidade;
+                option.textContent = cidade;
+                selectCidade.appendChild(option);
+            });
+        }
+    }
 }
 
 // Inicializar sistema

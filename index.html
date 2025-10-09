@@ -2,9 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Frequência</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <header>
@@ -13,9 +17,8 @@
             <h1>Sistema de Cadastro e Frequência</h1>
         </div>
         <nav>
-            <button id="btnCadastro" class="nav-btn active">Cadastro</button>
-            <button id="btnFrequencia" class="nav-btn">Frequência</button>
-            <button id="btnRelatorio" class="nav-btn">Relatório</button>
+            <button id="btnCadastro" class="nav-btn active">Cadastro Público</button>
+            <a href="login.html" class="nav-btn" style="text-decoration: none; display: inline-block; text-align: center;">🔐 Área dos Voluntários</a>
         </nav>
     </header>
 
@@ -27,61 +30,202 @@
                 <div class="form-group">
                     <h3>Dados Pessoais</h3>
                     <input type="text" id="nome" placeholder="Nome completo" required>
-                    <input type="text" id="cpf" placeholder="CPF" required>
-                    <input type="date" id="nascimento" required>
-                    <select id="sexo" required>
-                        <option value="">Sexo</option>
-                        <option value="M">Masculino</option>
-                        <option value="F">Feminino</option>
+                    <input type="text" id="cpf" placeholder="CPF">
+                    <label for="nascimento">Data de nascimento:</label>
+                    <input type="date" id="nascimento">
+                    <select id="religiao">
+                        <option value="">Religião</option>
+                        <option value="Católica">Católica</option>
+                        <option value="Evangélica">Evangélica</option>
+                        <option value="Espírita">Espírita</option>
+                        <option value="Espiritualista Livre">Espiritualista Livre</option>
+                        <option value="Umbanda">Umbanda</option>
+                        <option value="Candomblé">Candomblé</option>
+                        <option value="Budista">Budista</option>
+                        <option value="Judaica">Judaica</option>
+                        <option value="Islâmica">Islâmica</option>
+                        <option value="Agnóstica">Agnóstica</option>
+                        <option value="Ateia">Ateia</option>
+                        <option value="Outras">Outras</option>
+                        <option value="Não informar">Não informar</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <h3>Endereço</h3>
-                    <input type="text" id="cep" placeholder="CEP" required>
-                    <input type="text" id="rua" placeholder="Rua" required>
-                    <input type="text" id="numero" placeholder="Número" required>
-                    <input type="text" id="complemento" placeholder="Complemento">
-                    <input type="text" id="bairro" placeholder="Bairro" required>
-                    <input type="text" id="cidade" placeholder="Cidade" required>
-                    <input type="text" id="estado" placeholder="Estado" required>
+                    <h3>Localização</h3>
+                    <select id="estado">
+                        <option value="">Selecione o Estado</option>
+                        <option value="AC">Acre</option>
+                        <option value="AL">Alagoas</option>
+                        <option value="AP">Amapá</option>
+                        <option value="AM">Amazonas</option>
+                        <option value="BA">Bahia</option>
+                        <option value="CE">Ceará</option>
+                        <option value="DF">Distrito Federal</option>
+                        <option value="ES">Espírito Santo</option>
+                        <option value="GO">Goiás</option>
+                        <option value="MA">Maranhão</option>
+                        <option value="MT">Mato Grosso</option>
+                        <option value="MS">Mato Grosso do Sul</option>
+                        <option value="MG">Minas Gerais</option>
+                        <option value="PA">Pará</option>
+                        <option value="PB">Paraíba</option>
+                        <option value="PR">Paraná</option>
+                        <option value="PE">Pernambuco</option>
+                        <option value="PI">Piauí</option>
+                        <option value="RJ">Rio de Janeiro</option>
+                        <option value="RN">Rio Grande do Norte</option>
+                        <option value="RS">Rio Grande do Sul</option>
+                        <option value="RO">Rondônia</option>
+                        <option value="RR">Roraima</option>
+                        <option value="SC">Santa Catarina</option>
+                        <option value="SP">São Paulo</option>
+                        <option value="SE">Sergipe</option>
+                        <option value="TO">Tocantins</option>
+                    </select>
+                    <select id="cidade">
+                        <option value="">Selecione primeiro o Estado</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
                     <h3>Contato</h3>
-                    <input type="tel" id="telefone" placeholder="Telefone" required>
-                    <input type="email" id="email" placeholder="E-mail" required>
+                    <input type="tel" id="telefone" placeholder="Telefone">
+                    <input type="email" id="email" placeholder="E-mail">
+                </div>
+
+                <div class="form-group">
+                    <h3>Como nos conheceu?</h3>
+                    <select id="indicacao">
+                        <option value="">Selecione uma opção</option>
+                        <option value="Amigos/Parentes">Amigos/Parentes</option>
+                        <option value="Curso Terra do Bugio">Curso Terra do Bugio</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="Mercado Mistico">Mercado Místico</option>
+                        <option value="Rádio Atual">Rádio Atual</option>
+                        <option value="TV Astral">TV Astral</option>
+                        <option value="Youtube">Youtube</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <h3>Observações</h3>
+                    <textarea id="observacao" placeholder="Observações adicionais (opcional)" rows="3"></textarea>
                 </div>
 
                 <button type="submit">Cadastrar</button>
             </form>
         </section>
 
-        <!-- Seção de Frequência -->
+        <!-- Mensagem para área restrita -->
         <section id="secaoFrequencia" class="secao">
-            <h2>Controle de Frequência</h2>
+            <h2>🔒 Área Restrita</h2>
+            <div style="text-align: center; padding: 50px; background: #f8f9fa; border-radius: 10px; margin: 20px 0;">
+                <h3>Acesso apenas para voluntários</h3>
+                <p>O lançamento de frequência e relatórios são restritos a voluntários autenticados.</p>
+                <a href="login.html" style="background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">
+                    🔐 Fazer Login
+                </a>
+            </div>
             <div class="busca-pessoa">
                 <input type="text" id="buscaPessoa" placeholder="Buscar por nome ou CPF">
                 <div id="resultadoBusca"></div>
             </div>
             
             <div id="formFrequencia" style="display: none;">
-                <h3 id="nomePessoa"></h3>
+                <h3>Dados da Pessoa</h3>
+                <div class="form-group">
+                    <input type="text" id="editNome" placeholder="Nome completo">
+                    <input type="text" id="editCpf" placeholder="CPF">
+                    <label for="editNascimento">Data de nascimento:</label>
+                    <input type="date" id="editNascimento">
+                    <select id="editReligiao">
+                        <option value="">Religião</option>
+                        <option value="Católica">Católica</option>
+                        <option value="Evangélica">Evangélica</option>
+                        <option value="Espírita">Espírita</option>
+                        <option value="Espiritualista Livre">Espiritualista Livre</option>
+                        <option value="Umbanda">Umbanda</option>
+                        <option value="Candomblé">Candomblé</option>
+                        <option value="Budista">Budista</option>
+                        <option value="Judaica">Judaica</option>
+                        <option value="Islâmica">Islâmica</option>
+                        <option value="Agnóstica">Agnóstica</option>
+                        <option value="Ateia">Ateia</option>
+                        <option value="Outras">Outras</option>
+                        <option value="Não informar">Não informar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="editEstado">
+                        <option value="">Selecione o Estado</option>
+                        <option value="AC">Acre</option>
+                        <option value="AL">Alagoas</option>
+                        <option value="AP">Amapá</option>
+                        <option value="AM">Amazonas</option>
+                        <option value="BA">Bahia</option>
+                        <option value="CE">Ceará</option>
+                        <option value="DF">Distrito Federal</option>
+                        <option value="ES">Espírito Santo</option>
+                        <option value="GO">Goiás</option>
+                        <option value="MA">Maranhão</option>
+                        <option value="MT">Mato Grosso</option>
+                        <option value="MS">Mato Grosso do Sul</option>
+                        <option value="MG">Minas Gerais</option>
+                        <option value="PA">Pará</option>
+                        <option value="PB">Paraíba</option>
+                        <option value="PR">Paraná</option>
+                        <option value="PE">Pernambuco</option>
+                        <option value="PI">Piauí</option>
+                        <option value="RJ">Rio de Janeiro</option>
+                        <option value="RN">Rio Grande do Norte</option>
+                        <option value="RS">Rio Grande do Sul</option>
+                        <option value="RO">Rondônia</option>
+                        <option value="RR">Roraima</option>
+                        <option value="SC">Santa Catarina</option>
+                        <option value="SP">São Paulo</option>
+                        <option value="SE">Sergipe</option>
+                        <option value="TO">Tocantins</option>
+                    </select>
+                    <select id="editCidade">
+                        <option value="">Selecione primeiro o Estado</option>
+                    </select>
+                    <input type="tel" id="editTelefone" placeholder="Telefone">
+                    <input type="email" id="editEmail" placeholder="E-mail">
+                </div>
+                <button id="atualizarPessoa" style="background: #28a745; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0;">Atualizar Dados</button>
+                
+                <h3>Registrar Frequência</h3>
                 <div class="tipos-presenca">
                     <label><input type="radio" name="tipoPresenca" value="comum"> Comum</label>
                     <label><input type="radio" name="tipoPresenca" value="hospital"> Hospital</label>
                     <label><input type="radio" name="tipoPresenca" value="hospital_acompanhante"> Hospital Acompanhante</label>
+                    <label><input type="radio" name="tipoPresenca" value="crianca"> Criança</label>
                     <label><input type="radio" name="tipoPresenca" value="pet"> Pet</label>
                 </div>
-                <input type="number" id="numeroSenha" placeholder="Número da senha" required min="1">
+                <div id="senhasNormais">
+                    <input type="number" id="numeroSenha" placeholder="Número da senha" required min="1">
+                </div>
+                <div id="senhasPet" style="display: none;">
+                    <input type="number" id="senhaTutor" placeholder="Senha do tutor" min="1">
+                    <input type="number" id="senhaPet" placeholder="Senha do pet" min="1">
+                </div>
                 <input type="date" id="dataFrequencia" required>
-                <button id="marcarFrequencia">Marcar Frequência</button>
+                <button id="marcarFrequencia" style="background: #007bff; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0;">Marcar Frequência</button>
             </div>
         </section>
 
         <!-- Seção de Relatório -->
         <section id="secaoRelatorio" class="secao">
-            <h2>Relatório de Frequência</h2>
+            <h2>🔒 Área Restrita</h2>
+            <div style="text-align: center; padding: 50px; background: #f8f9fa; border-radius: 10px; margin: 20px 0;">
+                <h3>Acesso apenas para responsáveis e administradores</h3>
+                <p>Os relatórios são restritos a voluntários com permissão adequada.</p>
+                <a href="login.html" style="background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">
+                    🔐 Fazer Login
+                </a>
+            </div>
             <div class="filtros">
                 <input type="date" id="dataInicio" placeholder="Data início">
                 <input type="date" id="dataFim" placeholder="Data fim">
@@ -90,14 +234,24 @@
                     <option value="comum">Comum</option>
                     <option value="hospital">Hospital</option>
                     <option value="hospital_acompanhante">Hospital Acompanhante</option>
-                    <option value="pet">Pet</option>
+                    <option value="crianca">Criança</option>
+                    <option value="pet_tutor">Pet - Tutor</option>
+                    <option value="pet_animal">Pet - Animal</option>
                 </select>
                 <button id="gerarRelatorio">Gerar Relatório</button>
+                <button id="relatorioCidades">Relatório por Cidades</button>
+                <button id="relatorioMensal">Relatório Mensal</button>
+                <button id="exportarCidadesPDF" style="display:none;">Exportar Cidades PDF</button>
+                <button id="exportarMensalPDF" style="display:none;">Exportar Mensal PDF</button>
+                <button id="exportarCSV" style="display:none;">Exportar CSV</button>
+                <button id="exportarXLS" style="display:none;">Exportar XLS</button>
+                <button id="exportarPDF" style="display:none;">Exportar PDF</button>
             </div>
             <div id="relatorioResultado"></div>
         </section>
     </main>
 
+    <script src="js/municipios-completos.js"></script>
     <script src="js/script.js"></script>
 </body>
 </html>

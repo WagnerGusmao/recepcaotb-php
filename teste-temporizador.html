@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Temporizadores de Progresso</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .test-button {
+            background-color: #3498db;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        
+        .test-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .test-button.success {
+            background-color: #27ae60;
+        }
+        
+        .test-button.danger {
+            background-color: #e74c3c;
+        }
+        
+        .test-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>🔄 Teste de Temporizadores de Progresso</h1>
+            <p>Sistema Terra do Bugio - Demonstração de Funcionalidades</p>
+        </div>
+    </header>
+
+    <div class="test-container">
+        <h2>Demonstração dos Temporizadores de Progresso</h2>
+        <p>Esta página demonstra os diferentes tipos de temporizadores implementados no sistema.</p>
+
+        <div class="test-section">
+            <h3>1. Temporizador Simples com Barra de Progresso</h3>
+            <p>Simula uma operação básica com progresso automático baseado no tempo.</p>
+            <button class="test-button" onclick="testarProgressoSimples()">
+                Iniciar Progresso Simples
+            </button>
+            <div id="resultado1" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Temporizador com Passos Definidos</h3>
+            <p>Simula uma operação complexa dividida em etapas específicas.</p>
+            <button class="test-button" onclick="testarProgressoComPassos()">
+                Iniciar Progresso com Passos
+            </button>
+            <div id="resultado2" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Temporizador Cancelável</h3>
+            <p>Demonstra um progresso que pode ser cancelado pelo usuário.</p>
+            <button class="test-button" onclick="testarProgressoCancelavel()">
+                Iniciar Progresso Cancelável
+            </button>
+            <div id="resultado3" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Indicador Inline</h3>
+            <p>Pequeno indicador de carregamento para operações rápidas.</p>
+            <button class="test-button" onclick="testarProgressoInline()">
+                Mostrar Indicador Inline
+            </button>
+            <div id="resultado4" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Simulação de Cadastro</h3>
+            <p>Simula o processo de cadastro de uma pessoa com progresso detalhado.</p>
+            <button class="test-button success" onclick="testarCadastroSimulado()">
+                Simular Cadastro de Pessoa
+            </button>
+            <div id="resultado5" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. Simulação de Relatório</h3>
+            <p>Simula a geração de um relatório complexo com múltiplas etapas.</p>
+            <button class="test-button success" onclick="testarRelatorioSimulado()">
+                Simular Geração de Relatório
+            </button>
+            <div id="resultado6" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>7. Teste de Erro</h3>
+            <p>Demonstra como o sistema lida com erros durante o progresso.</p>
+            <button class="test-button danger" onclick="testarProgressoComErro()">
+                Simular Erro no Progresso
+            </button>
+            <div id="resultado7" class="test-result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script>
+        // Funções de teste para demonstrar os temporizadores
+
+        async function testarProgressoSimples() {
+            const resultado = document.getElementById('resultado1');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Iniciando teste...';
+
+            const timerId = progressTimer.create({
+                title: 'Progresso Simples',
+                message: 'Executando operação básica...',
+                estimatedTime: 5,
+                showSteps: false
+            });
+
+            // Simular operação
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            progressTimer.complete(timerId, {
+                message: 'Operação concluída!'
+            });
+
+            resultado.innerHTML = '✅ Teste de progresso simples concluído com sucesso!';
+        }
+
+        async function testarProgressoComPassos() {
+            const resultado = document.getElementById('resultado2');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Iniciando teste com passos...';
+
+            const timerId = progressTimer.create({
+                title: 'Operação Complexa',
+                message: 'Executando operação em etapas...',
+                estimatedTime: 8,
+                steps: [
+                    { text: 'Inicializando sistema' },
+                    { text: 'Carregando dados' },
+                    { text: 'Processando informações' },
+                    { text: 'Validando resultados' },
+                    { text: 'Finalizando operação' }
+                ]
+            });
+
+            // Simular cada passo
+            for (let i = 0; i < 5; i++) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                progressTimer.nextStep(timerId);
+            }
+
+            progressTimer.complete(timerId, {
+                message: 'Todas as etapas foram concluídas!'
+            });
+
+            resultado.innerHTML = '✅ Teste com passos concluído com sucesso!';
+        }
+
+        async function testarProgressoCancelavel() {
+            const resultado = document.getElementById('resultado3');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Iniciando teste cancelável...';
+
+            let cancelado = false;
+
+            const timerId = progressTimer.create({
+                title: 'Operação Cancelável',
+                message: 'Esta operação pode ser cancelada...',
+                estimatedTime: 10,
+                cancelable: true,
+                onCancel: () => {
+                    cancelado = true;
+                    resultado.innerHTML = '❌ Operação cancelada pelo usuário.';
+                },
+                steps: [
+                    { text: 'Preparando dados' },
+                    { text: 'Executando processamento' },
+                    { text: 'Salvando resultados' }
+                ]
+            });
+
+            // Simular operação longa
+            for (let i = 0; i < 3 && !cancelado; i++) {
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                if (!cancelado) {
+                    progressTimer.nextStep(timerId);
+                }
+            }
+
+            if (!cancelado) {
+                progressTimer.complete(timerId, {
+                    message: 'Operação concluída sem cancelamento!'
+                });
+                resultado.innerHTML = '✅ Teste cancelável concluído (não foi cancelado).';
+            }
+        }
+
+        async function testarProgressoInline() {
+            const resultado = document.getElementById('resultado4');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Carregando dados...';
+
+            const loadingEl = progressTimer.createInline(resultado, 'Buscando informações...');
+
+            // Simular carregamento
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            progressTimer.removeInline(loadingEl);
+            resultado.innerHTML = '✅ Dados carregados com sucesso usando indicador inline!';
+        }
+
+        async function testarCadastroSimulado() {
+            const resultado = document.getElementById('resultado5');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Simulando cadastro...';
+
+            const timerId = progressTimer.create({
+                title: 'Cadastrando Pessoa',
+                message: 'Validando e salvando dados de João Silva...',
+                estimatedTime: 4,
+                steps: [
+                    { text: 'Validando dados' },
+                    { text: 'Verificando duplicatas' },
+                    { text: 'Salvando no banco de dados' },
+                    { text: 'Enviando confirmação' }
+                ]
+            });
+
+            // Simular processo de cadastro
+            await new Promise(resolve => setTimeout(resolve, 800));
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            progressTimer.update(timerId, { message: 'Verificando se pessoa já existe...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            progressTimer.update(timerId, { message: 'Salvando dados no banco...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+            progressTimer.update(timerId, { message: 'Finalizando cadastro...' });
+            progressTimer.nextStep(timerId);
+
+            progressTimer.complete(timerId, {
+                message: 'João Silva cadastrado com sucesso!'
+            });
+
+            resultado.innerHTML = '✅ Simulação de cadastro concluída!';
+        }
+
+        async function testarRelatorioSimulado() {
+            const resultado = document.getElementById('resultado6');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Simulando geração de relatório...';
+
+            const timerId = progressTimer.create({
+                title: 'Gerando Relatório',
+                message: 'Coletando dados de frequência...',
+                estimatedTime: 7,
+                steps: [
+                    { text: 'Preparando consulta SQL' },
+                    { text: 'Executando consulta no banco' },
+                    { text: 'Processando 1.250 registros' },
+                    { text: 'Agrupando dados por categoria' },
+                    { text: 'Formatando relatório' },
+                    { text: 'Gerando gráficos' }
+                ]
+            });
+
+            // Simular geração de relatório
+            await new Promise(resolve => setTimeout(resolve, 600));
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            progressTimer.update(timerId, { message: 'Consultando banco de dados...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            progressTimer.update(timerId, { message: 'Processando registros encontrados...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            progressTimer.update(timerId, { message: 'Organizando dados...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+            progressTimer.update(timerId, { message: 'Aplicando formatação...' });
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            progressTimer.update(timerId, { message: 'Criando visualizações...' });
+            progressTimer.nextStep(timerId);
+
+            progressTimer.complete(timerId, {
+                message: 'Relatório gerado com 1.250 registros!'
+            });
+
+            resultado.innerHTML = '✅ Simulação de relatório concluída!';
+        }
+
+        async function testarProgressoComErro() {
+            const resultado = document.getElementById('resultado7');
+            resultado.style.display = 'block';
+            resultado.innerHTML = 'Simulando erro...';
+
+            const timerId = progressTimer.create({
+                title: 'Operação com Erro',
+                message: 'Tentando executar operação...',
+                estimatedTime: 4,
+                steps: [
+                    { text: 'Conectando ao servidor' },
+                    { text: 'Autenticando usuário' },
+                    { text: 'Executando operação' }
+                ]
+            });
+
+            // Simular início normal
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            progressTimer.nextStep(timerId);
+
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            progressTimer.update(timerId, { message: 'Verificando credenciais...' });
+            progressTimer.nextStep(timerId);
+
+            // Simular erro
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            progressTimer.remove(timerId);
+
+            // Mostrar erro
+            alert('❌ Erro simulado: Falha na conexão com o servidor!');
+            resultado.innerHTML = '❌ Teste de erro executado - progresso foi interrompido conforme esperado.';
+        }
+
+        // Mostrar informações sobre a implementação
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 Sistema de Temporizadores de Progresso carregado!');
+            console.log('📊 Funcionalidades disponíveis:');
+            console.log('  - Progresso com barra visual');
+            console.log('  - Cronômetro com tempo estimado');
+            console.log('  - Passos sequenciais com status');
+            console.log('  - Cancelamento de operações');
+            console.log('  - Indicadores inline para operações rápidas');
+            console.log('  - Integração com todas as operações do sistema');
+        });
+    </script>
+</body>
+</html>

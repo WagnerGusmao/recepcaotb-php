@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel - Sistema de Frequência</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .menu {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .menu-btn {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .menu-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .section {
+            display: none;
+            padding: 20px;
+        }
+        .section.active {
+            display: block;
+        }
+        .btn-logout {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Painel do Sistema</h1>
+        <div class="user-info">
+            <span id="userName"></span>
+            <span id="userType" class="badge"></span>
+            <button class="btn-logout" onclick="logout()">Sair</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="menu" id="menu">
+            <!-- Menu será gerado dinamicamente -->
+        </div>
+
+        <!-- Seção Frequência -->
+        <div id="frequencia" class="section">
+            <h2>📝 Lançar Frequência</h2>
+            <div id="frequenciaContent">
+                <!-- Conteúdo da frequência será carregado aqui -->
+            </div>
+        </div>
+
+        <!-- Seção Relatórios -->
+        <div id="relatorios" class="section">
+            <h2>📊 Relatórios</h2>
+            <div id="relatoriosContent">
+                <!-- Conteúdo dos relatórios será carregado aqui -->
+            </div>
+        </div>
+
+        <!-- Seção Usuários -->
+        <div id="usuarios" class="section">
+            <h2>👥 Gerenciar Usuários</h2>
+            <div id="usuariosContent">
+                <!-- Conteúdo dos usuários será carregado aqui -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar autenticação
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        console.log('Verificando autenticação...');
+        console.log('Token:', token ? 'Presente' : 'Ausente');
+        console.log('Usuário:', user);
+
+        if (!token || !user.id) {
+            alert('Sessão expirada. Redirecionando para login.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Configurar cabeçalho
+        document.getElementById('userName').textContent = user.nome;
+        document.getElementById('userType').textContent = user.tipo.toUpperCase();
+
+        // Configurar menu baseado no tipo de usuário
+        function setupMenu() {
+            const menu = document.getElementById('menu');
+            const menus = [];
+
+            // Todos os voluntários podem lançar frequência
+            menus.push({ id: 'frequencia', text: '📝 Frequência' });
+
+            // Responsáveis e admins podem ver relatórios
+            if (['responsavel', 'administrador'].includes(user.tipo)) {
+                menus.push({ id: 'relatorios', text: '📊 Relatórios' });
+            }
+
+            // Apenas admins podem gerenciar usuários
+            if (user.tipo === 'administrador') {
+                menus.push({ id: 'usuarios', text: '👥 Usuários' });
+            }
+
+            menu.innerHTML = menus.map(m => 
+                `<button class="menu-btn" onclick="showSection('${m.id}')">${m.text}</button>`
+            ).join('');
+
+            // Mostrar primeira seção
+            showSection(menus[0].id);
+        }
+
+        function showSection(sectionId) {
+            // Esconder todas as seções
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+
+            // Mostrar seção selecionada
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+
+            // Carregar conteúdo da seção
+            loadSectionContent(sectionId);
+        }
+
+        function loadSectionContent(sectionId) {
+            const content = document.getElementById(sectionId + 'Content');
+            
+            switch(sectionId) {
+                case 'frequencia':
+                    loadFrequencia();
+                    break;
+                case 'relatorios':
+                    loadRelatorios();
+                    break;
+                case 'usuarios':
+                    loadUsuarios();
+                    break;
+            }
+        }
+
+        function loadFrequencia() {
+            const content = document.getElementById('frequenciaContent');
+            content.innerHTML = `
+                <div class="busca-pessoa">
+                    <input type="text" id="buscaPessoa" placeholder="Buscar por nome ou CPF" style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 5px;">
+                    <div id="resultadoBusca"></div>
+                </div>
+                
+                <div id="formFrequencia" style="display: none;">
+                    <h3>Dados da Pessoa</h3>
+                    <div class="form-group" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <input type="text" id="editNome" placeholder="Nome completo" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <input type="text" id="editCpf" placeholder="CPF" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="editNascimento">Data de nascimento:</label>
+                        <input type="date" id="editNascimento" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <select id="editReligiao" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="">Religião</option>
+                            <option value="Católica">Católica</option>
+                            <option value="Evangélica">Evangélica</option>
+                            <option value="Espírita">Espírita</option>
+                            <option value="Espiritualista Livre">Espiritualista Livre</option>
+                            <option value="Umbanda">Umbanda</option>
+                            <option value="Candomblé">Candomblé</option>
+                            <option value="Budista">Budista</option>
+                            <option value="Judaica">Judaica</option>
+                            <option value="Islâmica">Islâmica</option>
+                            <option value="Agnóstica">Agnóstica</option>
+                            <option value="Ateia">Ateia</option>
+                            <option value="Outras">Outras</option>
+                            <option value="Não informar">Não informar</option>
+                        </select>
+                        <select id="editEstado" style="width: 48%; padding: 8px; margin-bottom: 10px; margin-right: 4%; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="">Estado</option>
+                            <option value="SP">São Paulo</option>
+                            <option value="RJ">Rio de Janeiro</option>
+                            <option value="MG">Minas Gerais</option>
+                        </select>
+                        <select id="editCidade" style="width: 48%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="">Cidade</option>
+                        </select>
+                        <input type="tel" id="editTelefone" placeholder="Telefone" style="width: 48%; padding: 8px; margin-bottom: 10px; margin-right: 4%; border: 1px solid #ddd; border-radius: 5px;">
+                        <input type="email" id="editEmail" placeholder="E-mail" style="width: 48%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <button id="atualizarPessoa" onclick="atualizarPessoa()" style="background: #28a745; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0;">Atualizar Dados</button>
+                    </div>
+                    
+                    <h3>Registrar Frequência</h3>
+                    <div class="tipos-presenca" style="margin-bottom: 15px;">
+                        <label style="margin-right: 15px;"><input type="radio" name="tipoPresenca" value="comum"> Comum</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="tipoPresenca" value="hospital"> Hospital</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="tipoPresenca" value="hospital_acompanhante"> Hospital Acompanhante</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="tipoPresenca" value="crianca"> Criança</label>
+                        <label style="margin-right: 15px;"><input type="radio" name="tipoPresenca" value="pet" onchange="toggleSenhasPet()"> Pet</label>
+                    </div>
+                    <div id="senhasNormais">
+                        <input type="number" id="numeroSenha" placeholder="Número da senha" required min="1" style="padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div id="senhasPet" style="display: none;">
+                        <input type="number" id="senhaTutor" placeholder="Senha do tutor" min="1" style="padding: 8px; margin-bottom: 10px; margin-right: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <input type="number" id="senhaPet" placeholder="Senha do pet" min="1" style="padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <input type="date" id="dataFrequencia" required style="padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <button id="marcarFrequencia" onclick="marcarFrequencia()" style="background: #007bff; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0;">Marcar Frequência</button>
+                </div>
+            `;
+            
+            // Definir data atual
+            document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+            
+            // Busca de pessoas com debounce
+            let timeoutId;
+            document.getElementById('buscaPessoa').addEventListener('input', function() {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(buscarPessoas, 500);
+            });
+            
+            console.log('Event listener de busca adicionado');
+            
+            // Adicionar evento para alternar senhas pet
+            document.querySelectorAll('input[name="tipoPresenca"]').forEach(radio => {
+                radio.addEventListener('change', toggleSenhasPet);
+            });
+        }
+
+        function toggleSenhasPet() {
+            const isPet = document.querySelector('input[name="tipoPresenca"]:checked')?.value === 'pet';
+            document.getElementById('senhasNormais').style.display = isPet ? 'none' : 'block';
+            document.getElementById('senhasPet').style.display = isPet ? 'block' : 'none';
+        }
+
+        async function buscarPessoas() {
+            const termo = document.getElementById('buscaPessoa').value;
+            const resultado = document.getElementById('resultadoBusca');
+            
+            console.log('Buscando por:', termo);
+            
+            if (termo.length < 2) {
+                resultado.innerHTML = '';
+                return;
+            }
+            
+            resultado.innerHTML = '<p style="padding: 10px; color: #666;">Buscando...</p>';
+            
+            try {
+                const url = `http://localhost:3000/api/pessoas?busca=${encodeURIComponent(termo)}`;
+                console.log('URL da busca:', url);
+                
+                const response = await fetch(url);
+                console.log('Status da resposta:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const pessoas = await response.json();
+                console.log('Pessoas encontradas:', pessoas.length);
+                
+                if (pessoas.length === 0) {
+                    resultado.innerHTML = '<p style="padding: 10px; color: #666;">Nenhuma pessoa encontrada</p>';
+                    return;
+                }
+                
+                resultado.innerHTML = pessoas.map(p => `
+                    <div onclick="selecionarPessoa(${p.id})" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: pointer; border-radius: 5px; background: white;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='white'">
+                        <strong>${p.nome}</strong><br>
+                        <small>CPF: ${p.cpf || 'Não informado'} | ${p.cidade || 'Não informado'}/${p.estado || 'Não informado'}</small>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erro detalhado:', error);
+                resultado.innerHTML = `<p style="color: red; padding: 10px;">Erro: ${error.message}</p>`;
+            }
+        }
+
+        let pessoaSelecionada = null;
+
+        async function selecionarPessoa(id) {
+            try {
+                console.log('Selecionando pessoa ID:', id);
+                
+                // Buscar pessoa específica por ID
+                const response = await fetch(`http://localhost:3000/api/pessoas`);
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar pessoa');
+                }
+                
+                const pessoas = await response.json();
+                const pessoa = pessoas.find(p => p.id === id);
+                
+                if (!pessoa) {
+                    alert('Pessoa não encontrada');
+                    return;
+                }
+                
+                console.log('Pessoa encontrada:', pessoa);
+                pessoaSelecionada = pessoa;
+                
+                // Preencher campos de edição
+                document.getElementById('editNome').value = pessoa.nome || '';
+                document.getElementById('editCpf').value = pessoa.cpf || '';
+                document.getElementById('editNascimento').value = pessoa.nascimento || '';
+                document.getElementById('editReligiao').value = pessoa.religiao || '';
+                document.getElementById('editEstado').value = pessoa.estado || '';
+                document.getElementById('editCidade').value = pessoa.cidade || '';
+                document.getElementById('editTelefone').value = pessoa.telefone || '';
+                document.getElementById('editEmail').value = pessoa.email || '';
+                
+                // Mostrar formulário e limpar busca
+                document.getElementById('formFrequencia').style.display = 'block';
+                document.getElementById('resultadoBusca').innerHTML = '';
+                document.getElementById('buscaPessoa').value = pessoa.nome;
+                
+                console.log('Formulário de frequência exibido');
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados da pessoa:', error);
+                alert('Erro ao carregar dados da pessoa: ' + error.message);
+            }
+        }
+
+        async function atualizarPessoa() {
+            if (!pessoaSelecionada) {
+                alert('Nenhuma pessoa selecionada');
+                return;
+            }
+            
+            const dadosAtualizados = {
+                nome: document.getElementById('editNome').value,
+                cpf: document.getElementById('editCpf').value,
+                nascimento: document.getElementById('editNascimento').value,
+                religiao: document.getElementById('editReligiao').value,
+                cidade: document.getElementById('editCidade').value,
+                estado: document.getElementById('editEstado').value,
+                telefone: document.getElementById('editTelefone').value,
+                email: document.getElementById('editEmail').value
+            };
+            
+            try {
+                const response = await fetch(`http://localhost:3000/api/pessoas/${pessoaSelecionada.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosAtualizados)
+                });
+                
+                if (response.ok) {
+                    alert('Dados atualizados com sucesso!');
+                    // Atualizar objeto da pessoa selecionada
+                    Object.assign(pessoaSelecionada, dadosAtualizados);
+                } else {
+                    const error = await response.json();
+                    alert('Erro ao atualizar: ' + error.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            }
+        }
+
+        async function marcarFrequencia() {
+            if (!pessoaSelecionada) {
+                alert('Selecione uma pessoa primeiro');
+                return;
+            }
+            
+            const tipo = document.querySelector('input[name="tipoPresenca"]:checked')?.value;
+            const data = document.getElementById('dataFrequencia').value;
+            
+            let numeroSenha, tipoFinal;
+            
+            if (tipo === 'pet') {
+                const senhaTutor = document.getElementById('senhaTutor').value;
+                const senhaPet = document.getElementById('senhaPet').value;
+                
+                if (!senhaTutor || !senhaPet) {
+                    alert('Preencha as senhas do tutor e do pet');
+                    return;
+                }
+                
+                // Registrar duas frequências para pet
+                try {
+                    // Frequência do tutor
+                    await fetch('http://localhost:3000/api/frequencias', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            pessoaId: pessoaSelecionada.id,
+                            tipo: 'pet_tutor',
+                            numeroSenha: senhaTutor,
+                            data
+                        })
+                    });
+                    
+                    // Frequência do pet
+                    await fetch('http://localhost:3000/api/frequencias', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            pessoaId: pessoaSelecionada.id,
+                            tipo: 'pet_animal',
+                            numeroSenha: senhaPet,
+                            data
+                        })
+                    });
+                    
+                    alert('Frequências do tutor e pet registradas com sucesso!');
+                    limparFormulario();
+                    return;
+                } catch (error) {
+                    alert('Erro ao registrar frequências do pet');
+                    return;
+                }
+            } else {
+                numeroSenha = document.getElementById('numeroSenha').value;
+                tipoFinal = tipo;
+            }
+            
+            if (!tipo || !numeroSenha || !data) {
+                alert('Preencha todos os campos');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/frequencias', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        pessoaId: pessoaSelecionada.id,
+                        tipo: tipoFinal,
+                        numeroSenha,
+                        data
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Frequência registrada com sucesso!');
+                    limparFormulario();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            }
+        }
+
+        function limparFormulario() {
+            document.getElementById('formFrequencia').style.display = 'none';
+            document.getElementById('buscaPessoa').value = '';
+            pessoaSelecionada = null;
+            
+            // Limpar campos
+            document.querySelectorAll('input[name="tipoPresenca"]').forEach(r => r.checked = false);
+            document.getElementById('numeroSenha').value = '';
+            document.getElementById('senhaTutor').value = '';
+            document.getElementById('senhaPet').value = '';
+            document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+            
+            // Resetar visibilidade das senhas
+            document.getElementById('senhasNormais').style.display = 'block';
+            document.getElementById('senhasPet').style.display = 'none';
+        }
+
+        function loadRelatorios() {
+            const content = document.getElementById('relatoriosContent');
+            content.innerHTML = `
+                <div class="filtros" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3>📊 Filtros do Relatório</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end; margin-bottom: 15px;">
+                        <div>
+                            <label>Data Início:</label><br>
+                            <input type="date" id="dataInicio" style="padding: 8px;">
+                        </div>
+                        <div>
+                            <label>Data Fim:</label><br>
+                            <input type="date" id="dataFim" style="padding: 8px;">
+                        </div>
+                        <div>
+                            <label>Tipo:</label><br>
+                            <select id="filtroTipo" style="padding: 8px;">
+                                <option value="">Todos os tipos</option>
+                                <option value="comum">Comum</option>
+                                <option value="hospital">Hospital</option>
+                                <option value="hospital_acompanhante">Hospital Acompanhante</option>
+                                <option value="crianca">Criança</option>
+                                <option value="pet_tutor">Pet - Tutor</option>
+                                <option value="pet_animal">Pet - Animal</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="gerarRelatorio" onclick="gerarRelatorio()" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                            Gerar Relatório
+                        </button>
+                        <button id="relatorioCidades" onclick="gerarRelatorioCidades()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                            Relatório por Cidades
+                        </button>
+                        <button id="relatorioMensal" onclick="gerarRelatorioMensal()" style="background: #ffc107; color: black; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                            Relatório Mensal
+                        </button>
+                        <button id="exportarPDF" onclick="exportarPDF()" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; display: none;">
+                            Exportar PDF
+                        </button>
+                        <button id="exportarCSV" onclick="exportarCSV()" style="background: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; display: none;">
+                            Exportar CSV
+                        </button>
+                    </div>
+                </div>
+                <div id="relatorioResultado"></div>
+            `;
+        }
+
+        async function gerarRelatorio() {
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const tipo = document.getElementById('filtroTipo').value;
+            
+            let url = 'http://localhost:3000/api/frequencias?';
+            if (dataInicio) url += `dataInicio=${dataInicio}&`;
+            if (dataFim) url += `dataFim=${dataFim}&`;
+            if (tipo) url += `tipo=${tipo}&`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const frequencias = await response.json();
+                    const resultado = document.getElementById('relatorioResultado');
+                    
+                    if (frequencias.length === 0) {
+                        resultado.innerHTML = '<p>Nenhuma frequência encontrada para os filtros selecionados.</p>';
+                        return;
+                    }
+                    
+                    resultado.innerHTML = `
+                        <h3>📋 Relatório de Frequências (${frequencias.length} registros)</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #007bff; color: white;">
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Nome</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Tipo</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Senha</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Data</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Registrado em</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${frequencias.map(f => `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${f.nome}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">
+                                            <span style="background: ${getTipoColor(f.tipo)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">
+                                                ${f.tipo.replace('_', ' ').toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${f.numero_senha}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${new Date(f.data).toLocaleDateString('pt-BR')}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${new Date(f.created_at).toLocaleString('pt-BR')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    document.getElementById('relatorioResultado').innerHTML = '<p>Erro ao gerar relatório</p>';
+                }
+            } catch (error) {
+                document.getElementById('relatorioResultado').innerHTML = '<p>Erro de conexão</p>';
+            }
+        }
+
+        function getTipoColor(tipo) {
+            const colors = {
+                'comum': '#28a745',
+                'hospital': '#dc3545', 
+                'hospital_acompanhante': '#ffc107',
+                'crianca': '#17a2b8',
+                'pet_tutor': '#6f42c1',
+                'pet_animal': '#fd7e14'
+            };
+            return colors[tipo] || '#6c757d';
+        }
+
+        async function gerarRelatorioCidades() {
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            
+            let url = 'http://localhost:3000/api/frequencias?';
+            if (dataInicio) url += `dataInicio=${dataInicio}&`;
+            if (dataFim) url += `dataFim=${dataFim}&`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const frequencias = await response.json();
+                    
+                    // Buscar dados das pessoas para obter cidades
+                    const pessoasResponse = await fetch('http://localhost:3000/api/pessoas');
+                    const pessoas = await pessoasResponse.json();
+                    
+                    // Agrupar por cidade
+                    const cidadeStats = {};
+                    
+                    frequencias.forEach(f => {
+                        const pessoa = pessoas.find(p => p.id === f.pessoa_id);
+                        if (pessoa && pessoa.cidade) {
+                            const chave = `${pessoa.cidade}/${pessoa.estado}`;
+                            if (!cidadeStats[chave]) {
+                                cidadeStats[chave] = { total: 0, pessoas: new Set() };
+                            }
+                            cidadeStats[chave].total++;
+                            cidadeStats[chave].pessoas.add(pessoa.id);
+                        }
+                    });
+                    
+                    const resultado = document.getElementById('relatorioResultado');
+                    const cidades = Object.entries(cidadeStats)
+                        .map(([cidade, stats]) => ({ cidade, total: stats.total, pessoas: stats.pessoas.size }))
+                        .sort((a, b) => b.total - a.total);
+                    
+                    resultado.innerHTML = `
+                        <h3>🏢 Relatório por Cidades (${cidades.length} cidades)</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #28a745; color: white;">
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Cidade/Estado</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Total Frequências</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Pessoas Únicas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cidades.map(c => `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${c.cidade}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${c.total}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${c.pessoas}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    document.getElementById('exportarPDF').style.display = 'inline-block';
+                    document.getElementById('exportarCSV').style.display = 'inline-block';
+                }
+            } catch (error) {
+                document.getElementById('relatorioResultado').innerHTML = '<p>Erro ao gerar relatório por cidades</p>';
+            }
+        }
+
+        async function gerarRelatorioMensal() {
+            try {
+                const response = await fetch('http://localhost:3000/api/frequencias', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const frequencias = await response.json();
+                    
+                    // Agrupar por mês/ano
+                    const mesStats = {};
+                    
+                    frequencias.forEach(f => {
+                        const data = new Date(f.data);
+                        const mesAno = `${data.getMonth() + 1}/${data.getFullYear()}`;
+                        
+                        if (!mesStats[mesAno]) {
+                            mesStats[mesAno] = { total: 0, tipos: {} };
+                        }
+                        
+                        mesStats[mesAno].total++;
+                        mesStats[mesAno].tipos[f.tipo] = (mesStats[mesAno].tipos[f.tipo] || 0) + 1;
+                    });
+                    
+                    const resultado = document.getElementById('relatorioResultado');
+                    const meses = Object.entries(mesStats)
+                        .sort((a, b) => {
+                            const [mesA, anoA] = a[0].split('/');
+                            const [mesB, anoB] = b[0].split('/');
+                            return new Date(anoB, mesB - 1) - new Date(anoA, mesA - 1);
+                        });
+                    
+                    resultado.innerHTML = `
+                        <h3>📅 Relatório Mensal (${meses.length} meses)</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #ffc107; color: black;">
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Mês/Ano</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Total</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Comum</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Hospital</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Acompanhante</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Criança</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Pet</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${meses.map(([mes, stats]) => `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">${mes}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${stats.total}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${stats.tipos.comum || 0}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${stats.tipos.hospital || 0}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${stats.tipos.hospital_acompanhante || 0}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${stats.tipos.crianca || 0}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${(stats.tipos.pet_tutor || 0) + (stats.tipos.pet_animal || 0)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    document.getElementById('exportarPDF').style.display = 'inline-block';
+                    document.getElementById('exportarCSV').style.display = 'inline-block';
+                }
+            } catch (error) {
+                document.getElementById('relatorioResultado').innerHTML = '<p>Erro ao gerar relatório mensal</p>';
+            }
+        }
+
+        function exportarPDF() {
+            alert('Função de exportar PDF será implementada');
+        }
+
+        function exportarCSV() {
+            alert('Função de exportar CSV será implementada');
+        }
+
+        async function loadUsuarios() {
+            const content = document.getElementById('usuariosContent');
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const usuarios = await response.json();
+                    content.innerHTML = `
+                        <button onclick="showCreateUser()" style="margin-bottom: 20px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            ➕ Novo Usuário
+                        </button>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Nome</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Email</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Tipo</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Status</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Criado</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${usuarios.map(u => `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${u.nome}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">${u.email}</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">
+                                            <span style="background: ${u.tipo === 'administrador' ? '#dc3545' : u.tipo === 'responsavel' ? '#ffc107' : '#28a745'}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">
+                                                ${u.tipo.toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">
+                                            ${u.ativo ? '✅ Ativo' : '❌ Inativo'}
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">
+                                            ${new Date(u.created_at).toLocaleDateString('pt-BR')}
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #ddd;">
+                                            <button onclick="editUser(${u.id})" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">
+                                                ✏️ Editar
+                                            </button>
+                                            <button onclick="toggleUserStatus(${u.id}, ${!u.ativo})" style="background: ${u.ativo ? '#dc3545' : '#28a745'}; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                                                ${u.ativo ? '❌ Desativar' : '✅ Ativar'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    content.innerHTML = '<p>Erro ao carregar usuários</p>';
+                }
+            } catch (error) {
+                content.innerHTML = '<p>Erro de conexão</p>';
+            }
+        }
+
+        async function toggleUserStatus(userId, novoStatus) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/usuarios/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ativo: novoStatus })
+                });
+
+                if (response.ok) {
+                    loadUsuarios();
+                } else {
+                    alert('Erro ao alterar status do usuário');
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            }
+        }
+
+        function showCreateUser() {
+            const content = document.getElementById('usuariosContent');
+            content.innerHTML = `
+                <h3>➕ Criar Novo Usuário</h3>
+                <form id="createUserForm" style="max-width: 500px;">
+                    <div style="margin-bottom: 15px;">
+                        <label>Nome:</label>
+                        <input type="text" id="newUserNome" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Email:</label>
+                        <input type="email" id="newUserEmail" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Senha:</label>
+                        <input type="password" id="newUserSenha" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Tipo:</label>
+                        <select id="newUserTipo" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="geral">Geral - Apenas lançar frequência</option>
+                            <option value="responsavel">Responsável - Frequência + Relatórios</option>
+                            <option value="administrador">Administrador - Acesso completo</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Criar Usuário
+                        </button>
+                        <button type="button" onclick="loadUsuarios()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            `;
+
+            document.getElementById('createUserForm').addEventListener('submit', createUser);
+        }
+
+        async function createUser(e) {
+            e.preventDefault();
+            
+            const userData = {
+                nome: document.getElementById('newUserNome').value,
+                email: document.getElementById('newUserEmail').value,
+                senha: document.getElementById('newUserSenha').value,
+                tipo: document.getElementById('newUserTipo').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    alert('Usuário criado com sucesso!');
+                    loadUsuarios();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            }
+        }
+
+        async function editUser(userId) {
+            // Buscar dados do usuário
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const usuarios = await response.json();
+                    const usuario = usuarios.find(u => u.id === userId);
+                    
+                    if (usuario) {
+                        const content = document.getElementById('usuariosContent');
+                        content.innerHTML = `
+                            <h3>✏️ Editar Usuário</h3>
+                            <form id="editUserForm" style="max-width: 500px;">
+                                <div style="margin-bottom: 15px;">
+                                    <label>Nome:</label>
+                                    <input type="text" id="editUserNome" value="${usuario.nome}" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label>Email:</label>
+                                    <input type="email" id="editUserEmail" value="${usuario.email}" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label>Tipo:</label>
+                                    <select id="editUserTipo" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="geral" ${usuario.tipo === 'geral' ? 'selected' : ''}>Geral - Apenas lançar frequência</option>
+                                        <option value="responsavel" ${usuario.tipo === 'responsavel' ? 'selected' : ''}>Responsável - Frequência + Relatórios</option>
+                                        <option value="administrador" ${usuario.tipo === 'administrador' ? 'selected' : ''}>Administrador - Acesso completo</option>
+                                    </select>
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label>
+                                        <input type="checkbox" id="editUserAtivo" ${usuario.ativo ? 'checked' : ''}> Usuário ativo
+                                    </label>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button type="submit" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                        Salvar Alterações
+                                    </button>
+                                    <button type="button" onclick="loadUsuarios()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        `;
+
+                        document.getElementById('editUserForm').addEventListener('submit', (e) => {
+                            e.preventDefault();
+                            updateUser(userId);
+                        });
+                    }
+                }
+            } catch (error) {
+                alert('Erro ao carregar dados do usuário');
+            }
+        }
+
+        async function updateUser(userId) {
+            const userData = {
+                nome: document.getElementById('editUserNome').value,
+                email: document.getElementById('editUserEmail').value,
+                tipo: document.getElementById('editUserTipo').value,
+                ativo: document.getElementById('editUserAtivo').checked
+            };
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/usuarios/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    alert('Usuário atualizado com sucesso!');
+                    loadUsuarios();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.error);
+                }
+            } catch (error) {
+                alert('Erro de conexão');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        // Testar conexão com servidor
+        async function testarConexao() {
+            try {
+                const response = await fetch('http://localhost:3000/api/pessoas?busca=test');
+                console.log('Teste de conexão:', response.status);
+                if (response.ok) {
+                    console.log('✅ Servidor conectado');
+                } else {
+                    console.log('⚠️ Servidor respondeu com erro:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Erro de conexão:', error);
+                alert('Erro: Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+            }
+        }
+        
+        // Inicializar
+        testarConexao();
+        setupMenu();
+    </script>
+</body>
+</html>

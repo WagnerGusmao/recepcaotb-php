@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trocar Senha - Sistema de Frequência</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+        }
+        
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        .alert strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .success {
+            color: #28a745;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .requirements {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        
+        .requirements h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .requirements li {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .user-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        .user-info strong {
+            color: #1976d2;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Trocar Senha</h1>
+            <p style="color: #666; margin: 0;">Sua senha foi resetada por um administrador</p>
+        </div>
+        
+        <div class="alert">
+            <strong>⚠️ Troca de senha obrigatória</strong>
+            Por motivos de segurança, você deve definir uma nova senha antes de continuar usando o sistema.
+        </div>
+        
+        <div class="user-info" id="userInfo">
+            <strong>Usuário:</strong> <span id="userName"></span><br>
+            <strong>Tipo:</strong> <span id="userType"></span>
+        </div>
+        
+        <form id="trocarSenhaForm">
+            <div class="form-group">
+                <label for="senhaAtual">Senha Atual (fornecida pelo administrador):</label>
+                <input type="password" id="senhaAtual" required>
+                <div class="error" id="senhaAtualError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="novaSenha">Nova Senha:</label>
+                <input type="password" id="novaSenha" required>
+                <div class="error" id="novaSenhaError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmarSenha">Confirmar Nova Senha:</label>
+                <input type="password" id="confirmarSenha" required>
+                <div class="error" id="confirmarSenhaError"></div>
+            </div>
+            
+            <div class="requirements">
+                <h4>Requisitos da senha:</h4>
+                <ul>
+                    <li>Mínimo de 4 caracteres</li>
+                    <li>Recomendado: use letras, números e símbolos</li>
+                    <li>Evite senhas muito simples</li>
+                </ul>
+            </div>
+            
+            <button type="submit" class="btn" id="submitBtn">Alterar Senha</button>
+            
+            <div class="success" id="successMessage"></div>
+        </form>
+    </div>
+
+    <script>
+        // Verificar autenticação e se precisa trocar senha
+        let token = localStorage.getItem('token');
+        let user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token || !user.id) {
+            window.location.href = 'login.html';
+        }
+
+        if (!user.deve_trocar_senha) {
+            // Se não precisa trocar senha, redirecionar para o painel
+            window.location.href = 'painel-simples.html';
+        }
+
+        // Mostrar informações do usuário
+        document.getElementById('userName').textContent = user.nome;
+        document.getElementById('userType').textContent = user.tipo.toUpperCase();
+
+        // Form de trocar senha
+        document.getElementById('trocarSenhaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const senhaAtual = document.getElementById('senhaAtual').value;
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmarSenha = document.getElementById('confirmarSenha').value;
+            
+            // Limpar erros anteriores
+            document.querySelectorAll('.error').forEach(el => el.style.display = 'none');
+            
+            let hasError = false;
+            
+            // Validações
+            if (!senhaAtual) {
+                showError('senhaAtualError', 'Senha atual é obrigatória');
+                hasError = true;
+            }
+            
+            if (!novaSenha) {
+                showError('novaSenhaError', 'Nova senha é obrigatória');
+                hasError = true;
+            } else if (novaSenha.length < 4) {
+                showError('novaSenhaError', 'Nova senha deve ter pelo menos 4 caracteres');
+                hasError = true;
+            }
+            
+            if (!confirmarSenha) {
+                showError('confirmarSenhaError', 'Confirmação de senha é obrigatória');
+                hasError = true;
+            } else if (novaSenha !== confirmarSenha) {
+                showError('confirmarSenhaError', 'As senhas não coincidem');
+                hasError = true;
+            }
+            
+            if (hasError) return;
+            
+            // Desabilitar botão durante o processo
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Alterando...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/usuarios/trocar-senha-obrigatoria', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        senhaAtual,
+                        novaSenha
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Atualizar dados do usuário
+                    user.deve_trocar_senha = 0;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    // Mostrar sucesso
+                    const successEl = document.getElementById('successMessage');
+                    successEl.textContent = '✅ ' + data.message;
+                    successEl.style.display = 'block';
+                    
+                    // Redirecionar após 2 segundos
+                    setTimeout(() => {
+                        window.location.href = 'painel-simples.html';
+                    }, 2000);
+                    
+                } else {
+                    if (data.error.includes('atual incorreta')) {
+                        showError('senhaAtualError', data.error);
+                    } else {
+                        showError('novaSenhaError', data.error);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showError('novaSenhaError', 'Erro de conexão. Tente novamente.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Alterar Senha';
+            }
+        });
+        
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+        
+        // Validação em tempo real das senhas
+        document.getElementById('confirmarSenha').addEventListener('input', function() {
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmarSenha = this.value;
+            
+            if (confirmarSenha && novaSenha !== confirmarSenha) {
+                showError('confirmarSenhaError', 'As senhas não coincidem');
+            } else {
+                document.getElementById('confirmarSenhaError').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

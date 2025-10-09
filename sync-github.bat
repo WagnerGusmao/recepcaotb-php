@@ -21,7 +21,7 @@ git remote get-url origin >nul 2>&1
 if errorlevel 1 (
     echo.
     echo ATENÇÃO: Configure o repositório remoto primeiro:
-    echo git remote add origin https://github.com/wagnergusmao/terrabugiosenha.git
+    echo git remote add origin https://github.com/wagnergusmao/terrabugiosenh.git
     echo.
     echo Depois execute: git push -u origin main
 ) else (
