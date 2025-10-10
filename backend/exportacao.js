@@ -4,6 +4,12 @@ const db = require('./database');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const { createTempFile, unlink } = require('fs').promises;
+const { tmpdir } = require('os');
+const { join } = require('path');
+const { promisify } = require('util');
+const { writeFile } = require('fs').promises;
+const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
@@ -262,23 +268,49 @@ function agruparPorCidade(dados) {
 
 // Rota para exportar PDF
 router.post('/pdf', verificarAuth, async (req, res) => {
+    const { tipo, filtros } = req.body;
+    const tempDir = tmpdir();
+    const timestamp = new Date().getTime();
+    const filename = `relatorio_${timestamp}.pdf`;
+    const filePath = join(tempDir, filename);
+    
     try {
-        const { tipo, filtros } = req.body;
-        
         const dados = await buscarFrequencias(filtros);
         const html = gerarHTMLRelatorio(tipo, dados, filtros);
         
-        // Para desenvolvimento, vamos usar uma alternativa mais simples ao puppeteer
-        // Retornar o HTML para o frontend converter
-        res.json({ 
-            success: true, 
-            html: html,
-            message: 'HTML gerado para conversão no frontend'
-        });
+        // Usando html-pdf-node para gerar o PDF
+        const { generatePdf } = require('html-pdf-node');
+        
+        // Opções para o PDF
+        const options = {
+            format: 'A4',
+            margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+            printBackground: true,
+            preferCSSPageSize: true,
+            displayHeaderFooter: false,
+        };
+        
+        const file = { content: html };
+        const pdfBuffer = await generatePdf(file, options);
+        
+        // Enviar o PDF como resposta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(pdfBuffer);
         
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);
-        res.status(500).json({ error: 'Erro ao gerar PDF' });
+        res.status(500).json({ 
+            error: 'Erro ao gerar PDF',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    } finally {
+        // Limpar arquivo temporário se existir
+        try {
+            await unlink(filePath).catch(() => {});
+        } catch (e) {
+            console.error('Erro ao limpar arquivo temporário:', e);
+        }
     }
 });
 

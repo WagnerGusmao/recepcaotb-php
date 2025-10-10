@@ -4,6 +4,51 @@ const db = require('./database');
 
 const router = express.Router();
 
+// Deletar usuário (apenas admins)
+router.delete('/:id', verificarAuth, verificarTipo(['administrador']), (req, res) => {
+    const { id } = req.params;
+    
+    // Prevenir que o próprio usuário se delete
+    if (parseInt(id) === req.user.id) {
+        return res.status(400).json({ error: 'Você não pode excluir seu próprio usuário' });
+    }
+    
+    // Iniciar transação para garantir integridade dos dados
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // 1. Primeiro, remover as sessões do usuário
+        db.run('DELETE FROM sessoes WHERE usuario_id = ?', [id], function(err) {
+            if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Erro ao remover sessões do usuário' });
+            }
+            
+            // 2. Depois, remover o usuário
+            db.run('DELETE FROM usuarios WHERE id = ?', [id], function(err) {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Erro ao remover usuário' });
+                }
+                
+                if (this.changes === 0) {
+                    db.run('ROLLBACK');
+                    return res.status(404).json({ error: 'Usuário não encontrado' });
+                }
+                
+                // Se tudo deu certo, fazer commit
+                db.run('COMMIT', (err) => {
+                    if (err) {
+                        console.error('Erro ao fazer commit da transação:', err);
+                        return res.status(500).json({ error: 'Erro ao finalizar operação' });
+                    }
+                    res.json({ message: 'Usuário removido com sucesso' });
+                });
+            });
+        });
+    });
+});
+
 // Listar usuários (apenas admins)
 router.get('/', verificarAuth, verificarTipo(['administrador']), (req, res) => {
     db.all(`SELECT u.id, u.nome, u.email, u.tipo, u.ativo, u.created_at, p.nome as pessoa_nome
