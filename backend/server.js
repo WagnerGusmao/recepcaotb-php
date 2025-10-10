@@ -4,6 +4,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const db = require('./database');
 const { verificarAuth, verificarTipo, login, logout } = require('./auth');
+const healthRouter = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,9 +25,14 @@ app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Log de todas as requisições
+// Rota de health check
+app.use('/api/health', healthRouter);
+
+// Log de todas as requisições (exceto health check)
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, req.body);
+    if (!req.path.startsWith('/api/health')) {
+        console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, req.body);
+    }
     next();
 });
 
