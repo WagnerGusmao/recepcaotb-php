@@ -4,13 +4,17 @@ FROM node:18-alpine
 # Crie o diretório da aplicação
 WORKDIR /usr/src/app
 
-# Instale as dependências necessárias para o build e para o sqlite3
+# Instale as dependências necessárias para o build, sqlite3 e bcrypt
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
     sqlite \
-    sqlite-dev
+    sqlite-dev \
+    build-base \
+    python3-dev \
+    py3-pip \
+    && pip3 install --upgrade pip
 
 # Configure o Python 3 como o interpretador padrão
 RUN ln -sf /usr/bin/python3 /usr/bin/python
