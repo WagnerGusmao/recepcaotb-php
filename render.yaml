@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: recepcaotb
+    env: node
+<<<<<<< Updated upstream
+    buildCommand: npm install
+=======
+    buildCommand: npm install && cd backend && npm install
+>>>>>>> Stashed changes
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+<<<<<<< Updated upstream
+      - key: NODE_ENV
+        value: production
+=======
+>>>>>>> Stashed changes
+    plan: free

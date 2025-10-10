@@ -6,7 +6,7 @@ const db = require('./database');
 const { verificarAuth, verificarTipo, login, logout } = require('./auth');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 // Configurar CORS baseado no ambiente
 const corsOptions = {
