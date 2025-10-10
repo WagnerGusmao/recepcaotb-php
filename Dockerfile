@@ -10,12 +10,14 @@ RUN apk add --no-cache \
     make \
     g++ \
     sqlite \
-    sqlite-dev \
-    && npm config set python /usr/bin/python3
+    sqlite-dev
+
+# Configure o Python 3 como o interpretador padrão
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Instale as dependências da aplicação
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --python=/usr/bin/python3
 
 # Copie o código-fonte da aplicação
 COPY . .
