@@ -4,17 +4,14 @@ FROM node:18-alpine
 # Crie o diretório da aplicação
 WORKDIR /usr/src/app
 
+# Instale as dependências necessárias para o build
+RUN apk add --no-cache python3 make g++
+
 # Instale as dependências da aplicação
 COPY package*.json ./
-RUN npm install
-
-# Instale as dependências do backend
-WORKDIR /usr/src/app/backend
-COPY backend/package*.json ./
-RUN npm install
+RUN npm ci --only=production
 
 # Copie o código-fonte da aplicação
-WORKDIR /usr/src/app
 COPY . .
 
 # Exponha a porta 10000
