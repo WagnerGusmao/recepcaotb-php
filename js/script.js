@@ -1240,78 +1240,398 @@ class SistemaFrequencia {
         XLSX.writeFile(wb, 'relatorio_frequencia.xlsx');
     }
 
-    exportarPDF() {
-        if (!this.dadosRelatorio) return;
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Logo (se existir)
+    /**
+     * Exporta os dados para PDF usando jsPDF com formatação aprimorada
+     * @returns {Promise<void>}
+     */
+    async exportarPDF() {
+        // Configuração do indicador de carregamento
+        const timerId = progressTimer.create({
+            title: 'Gerando PDF',
+            message: 'Preparando documento...',
+            estimatedTime: 10,
+            steps: [
+                { text: 'Coletando dados' },
+                { text: 'Formatando documento' },
+                { text: 'Adicionando conteúdo' },
+                { text: 'Finalizando' }
+            ]
+        });
+
         try {
-            const img = document.querySelector('.logo');
-            if (img && img.complete) {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                ctx.drawImage(img, 0, 0);
-                const imgData = canvas.toDataURL('image/jpeg', 0.8);
-                doc.addImage(imgData, 'JPEG', 160, 10, 30, 15);
-            }
-        } catch (e) {
-            console.log('Logo não pôde ser adicionado');
-        }
-        
-        // Título
-        doc.setFontSize(16);
-        doc.text('Relatório de Frequência', 20, 20);
-        doc.setFontSize(10);
-        doc.text('Terra do Bugio', 20, 30);
-        
-        // Cabeçalho da tabela
-        doc.setFontSize(10);
-        let y = 45;
-        doc.text('Nome', 20, y);
-        doc.text('Tipo', 80, y);
-        doc.text('Senha', 130, y);
-        doc.text('Data', 160, y);
-        
-        // Linha do cabeçalho
-        doc.line(20, y + 2, 190, y + 2);
-        y += 10;
-        
-        // Dados
-        this.dadosRelatorio.forEach(freq => {
-            if (y > 280) {
-                doc.addPage();
-                y = 20;
-                // Repetir cabeçalho na nova página
-                doc.text('Nome', 20, y);
-                doc.text('Tipo', 80, y);
-                doc.text('Senha', 130, y);
-                doc.text('Data', 160, y);
-                doc.line(20, y + 2, 190, y + 2);
-                y += 10;
+            progressTimer.nextStep(timerId, 'Validando dependências...');
+            
+            // Verificar se o jsPDF está disponível
+            if (typeof window.jspdf === 'undefined') {
+                throw new Error('Biblioteca jsPDF não carregada corretamente');
             }
             
-            const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
-            const tipoLabels = {
-                comum: 'Comum',
-                hospital: 'Hospital',
-                hospital_acompanhante: 'Hosp. Acomp.',
-                crianca: 'Criança',
-                pet_tutor: 'Pet - Tutor',
-                pet_animal: 'Pet - Animal'
+            // Obter os dados do formulário
+            const tipo = document.getElementById('tipoRelatorio')?.value || 'Relatório de Frequência';
+            const dataInicio = document.getElementById('dataInicio')?.value || '';
+            const dataFim = document.getElementById('dataFim')?.value || '';
+            const tipoFrequencia = document.getElementById('tipoFrequencia')?.value || '';
+            
+            progressTimer.nextStep(timerId, 'Buscando dados do relatório...');
+            
+            // Buscar os dados do relatório
+            const response = await fetch(`${this.apiUrl}/exportacao/dados-relatorio`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...this.getAuthHeaders()
+                },
+                body: JSON.stringify({ 
+                    tipo, 
+                    filtros: {
+                        dataInicio: dataInicio || undefined,
+                        dataFim: dataFim || undefined,
+                        tipo: tipoFrequencia || undefined
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Erro ao buscar dados para o relatório');
+            }
+
+            const relatorio = await response.json();
+            
+            progressTimer.nextStep(timerId, 'Criando documento PDF...');
+            
+            // Usar a biblioteca jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Configurações do documento
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 15;
+            const lineHeight = 7;
+            let y = 20;
+            
+            /**
+             * Função auxiliar para adicionar texto com formatação
+             * @param {string} text - Texto a ser adicionado
+             * @param {number} x - Posição X
+             * @param {number} y - Posição Y
+             * @param {Object} options - Opções de formatação
+             * @returns {number} Nova posição Y após adicionar o texto
+             */
+            const addText = (text, x, y, options = {}) => {
+                const { 
+                    maxWidth = pageWidth - 2 * margin, 
+                    align = 'left', 
+                    fontSize = 12, 
+                    fontStyle = 'normal',
+                    color = [0, 0, 0]
+                } = options;
+                
+                doc.setFontSize(fontSize);
+                doc.setFont('helvetica', fontStyle);
+                doc.setTextColor(...color);
+                
+                // Se o texto for muito grande, dividir em múltiplas linhas
+                const splitText = doc.splitTextToSize(String(text), maxWidth);
+                doc.text(splitText, x, y, { align, maxWidth });
+                
+                // Calcular a altura total do texto
+                const lineHeight = doc.getTextDimensions('M', { fontSize }).h * 1.2;
+                return y + (splitText.length * lineHeight);
             };
             
-            doc.text(freq.nome.substring(0, 25), 20, y);
-            doc.text(tipoLabels[freq.tipo] || freq.tipo, 80, y);
-            doc.text(freq.numero_senha.toString(), 130, y);
-            doc.text(dataFormatada, 160, y);
-            y += 8;
-        });
-        
-        doc.save('relatorio_frequencia.pdf');
+            /**
+             * Adiciona um cabeçalho à página atual
+             */
+            const addHeader = () => {
+                // Adicionar logo (se existir)
+                try {
+                    const img = document.querySelector('.logo');
+                    if (img && img.complete) {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const maxWidth = 40;
+                        const maxHeight = 20;
+                        
+                        // Manter a proporção da imagem
+                        let width = img.naturalWidth;
+                        let height = img.naturalHeight;
+                        
+                        if (width > maxWidth) {
+                            height = (maxWidth / width) * height;
+                            width = maxWidth;
+                        }
+                        
+                        if (height > maxHeight) {
+                            width = (maxHeight / height) * width;
+                            height = maxHeight;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const imgData = canvas.toDataURL('image/png');
+                        doc.addImage(imgData, 'PNG', margin, 10, width, height);
+                        return height + 15; // Retorna a posição Y após a imagem
+                    }
+                } catch (e) {
+                    console.warn('Não foi possível adicionar o logo ao PDF:', e);
+                }
+                
+                // Se não houver logo, retorna a posição Y padrão
+                return 20;
+            };
+            
+            /**
+             * Adiciona o rodapé à página atual
+             * @param {number} currentPage - Número da página atual
+             * @param {number} totalPages - Total de páginas
+             */
+            const addFooter = (currentPage, totalPages) => {
+                const footerY = pageHeight - 15;
+                
+                // Linha divisória
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.2);
+                doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+                
+                // Texto do rodapé
+                doc.setFontSize(9);
+                doc.setTextColor(100);
+                doc.text(
+                    `Página ${currentPage} de ${totalPages} | Gerado em ${new Date().toLocaleString('pt-BR')}`, 
+                    pageWidth / 2, 
+                    footerY,
+                    { align: 'center' }
+                );
+                
+                doc.text(
+                    'Sistema de Frequência - Terra do Bugio',
+                    margin,
+                    footerY,
+                    { align: 'left' }
+                );
+                
+                doc.text(
+                    `Relatório: ${tipo}`,
+                    pageWidth - margin,
+                    footerY,
+                    { align: 'right' }
+                );
+            };
+            
+            /**
+             * Adiciona uma nova página e configura cabeçalho
+             * @returns {number} Nova posição Y
+             */
+            const addNewPage = () => {
+                doc.addPage();
+                return addHeader();
+            };
+            
+            // Configuração inicial da primeira página
+            y = addHeader();
+            
+            // Título do relatório
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            y = addText(tipo, pageWidth / 2, y, { 
+                align: 'center',
+                fontSize: 16
+            }) + 10;
+            
+            // Informações do período
+            doc.setFontSize(10);
+            let periodoTexto = 'Período: ';
+            
+            if (dataInicio && dataFim) {
+                periodoTexto += `De ${new Date(dataInicio).toLocaleDateString('pt-BR')} `;
+                periodoTexto += `até ${new Date(dataFim).toLocaleDateString('pt-BR')}`;
+            } else if (dataInicio) {
+                periodoTexto += `A partir de ${new Date(dataInicio).toLocaleDateString('pt-BR')}`;
+            } else if (dataFim) {
+                periodoTexto += `Até ${new Date(dataFim).toLocaleDateString('pt-BR')}`;
+            } else {
+                periodoTexto += 'Período não especificado';
+            }
+            
+            y = addText(periodoTexto, margin, y) + 5;
+            
+            // Filtros adicionais
+            if (tipoFrequencia) {
+                y = addText(`Filtro: ${tipoFrequencia}`, margin, y) + 5;
+            }
+            
+            // Linha divisória
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 10;
+            
+            progressTimer.nextStep(timerId, 'Adicionando conteúdo ao PDF...');
+            
+            // Adicionar dados do relatório
+            if (relatorio.itens && relatorio.itens.length > 0) {
+                // Configuração da tabela
+                const colWidths = {
+                    nome: (pageWidth - 2 * margin) * 0.4,
+                    data: (pageWidth - 2 * margin) * 0.2,
+                    tipo: (pageWidth - 2 * margin) * 0.2,
+                    cidade: (pageWidth - 2 * margin) * 0.2
+                };
+                
+                // Cabeçalho da tabela
+                const drawTableHeader = () => {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.setTextColor(255, 255, 255);
+                    
+                    // Fundo do cabeçalho
+                    doc.setFillColor(51, 122, 183);
+                    doc.rect(margin, y, pageWidth - 2 * margin, 8, 'F');
+                    
+                    // Textos do cabeçalho
+                    let x = margin + 5;
+                    doc.text('Nome', x, y + 6);
+                    x += colWidths.nome;
+                    doc.text('Data', x, y + 6);
+                    x += colWidths.data;
+                    doc.text('Tipo', x, y + 6);
+                    x += colWidths.tipo;
+                    doc.text('Cidade', x, y + 6);
+                    
+                    y += 10; // Altura do cabeçalho
+                    doc.setTextColor(0, 0, 0); // Voltar cor padrão
+                };
+                
+                // Desenhar o cabeçalho na primeira página
+                drawTableHeader();
+                
+                // Processar itens
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                
+                relatorio.itens.forEach((item, index) => {
+                    // Verificar se precisa de nova página
+                    if (y > pageHeight - 30) {
+                        addFooter(doc.internal.getNumberOfPages(), 0); // Páginas totais serão atualizadas depois
+                        y = addNewPage();
+                        drawTableHeader();
+                    }
+                    
+                    // Linha com fundo alternado para melhor legibilidade
+                    if (index % 2 === 0) {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(margin, y - 2, pageWidth - 2 * margin, 8, 'F');
+                    }
+                    
+                    // Adicionar célula de nome
+                    let x = margin + 5;
+                    y = addText(item.nome || 'Não informado', x, y + 6, {
+                        maxWidth: colWidths.nome - 5,
+                        fontSize: 9
+                    }) - 6; // Ajuste para alinhar com as outras células
+                    
+                    // Adicionar célula de data
+                    x += colWidths.nome;
+                    const data = item.data ? new Date(item.data).toLocaleDateString('pt-BR') : 'N/D';
+                    doc.text(data, x, y + 6);
+                    
+                    // Adicionar célula de tipo
+                    x += colWidths.data;
+                    const tipoLabel = {
+                        'comum': 'Comum',
+                        'hospital': 'Hospital',
+                        'hospital_acompanhante': 'Acompanhante',
+                        'crianca': 'Criança',
+                        'pet_tutor': 'Pet - Tutor',
+                        'pet_animal': 'Pet - Animal'
+                    }[item.tipo] || item.tipo || 'Não informado';
+                    doc.text(tipoLabel, x, y + 6);
+                    
+                    // Adicionar célula de cidade
+                    x += colWidths.tipo;
+                    doc.text(item.cidade || 'Não informado', x, y + 6);
+                    
+                    y += 8; // Altura da linha
+                });
+                
+                // Adicionar totais
+                if (y > pageHeight - 30) {
+                    addFooter(doc.internal.getNumberOfPages(), 0);
+                    y = addNewPage();
+                }
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                y += 10;
+                doc.text(`Total de registros: ${relatorio.itens.length}`, margin, y);
+                
+                // Adicionar resumo se disponível
+                if (relatorio.resumo) {
+                    y += 10;
+                    doc.setFontSize(11);
+                    doc.text('Resumo:', margin, y);
+                    y += 7;
+                    
+                    doc.setFontSize(10);
+                    Object.entries(relatorio.resumo).forEach(([key, value]) => {
+                        y = addText(`• ${key}: ${value}`, margin + 5, y + 5) + 2;
+                    });
+                }
+            } else {
+                // Mensagem quando não há dados
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'italic');
+                y = addText(
+                    'Nenhum dado encontrado para os filtros selecionados.', 
+                    pageWidth / 2, 
+                    y + 20,
+                    { align: 'center' }
+                );
+            }
+            
+            // Adicionar rodapé em todas as páginas
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                addFooter(i, totalPages);
+            }
+            
+            // Gerar nome do arquivo com data e hora
+            const now = new Date();
+            const timestamp = [
+                now.getFullYear(),
+                String(now.getMonth() + 1).padStart(2, '0'),
+                String(now.getDate()).padStart(2, '0'),
+                String(now.getHours()).padStart(2, '0'),
+                String(now.getMinutes()).padStart(2, '0')
+            ].join('');
+            
+            const fileName = `relatorio_${tipo.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.pdf`;
+            
+            // Salvar o PDF
+            progressTimer.nextStep(timerId, 'Finalizando...');
+            doc.save(fileName);
+            
+            progressTimer.complete(timerId, { 
+                message: 'Relatório gerado com sucesso!',
+                type: 'success'
+            });
+            
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            progressTimer.complete(timerId, {
+                message: `Erro ao gerar o PDF: ${error.message || 'Erro desconhecido'}`,
+                type: 'error'
+            });
+        }
     }
 
     async atualizarPessoa() {

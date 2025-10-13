@@ -266,50 +266,187 @@ function agruparPorCidade(dados) {
         .sort((a, b) => b.total - a.total);
 }
 
-// Rota para exportar PDF
+// Função para formatar data no padrão brasileiro
+function formatarData(data) {
+    if (!data) return '';
+    const date = new Date(data);
+    return date.toLocaleDateString('pt-BR');
+}
+
+// Função para adicionar cabeçalho ao PDF
+function adicionarCabecalho(doc, tipo, filtros) {
+    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    let periodo = 'Período completo';
+    
+    if (filtros.dataInicio && filtros.dataFim) {
+        periodo = `${formatarData(filtros.dataInicio)} a ${formatarData(filtros.dataFim)}`;
+    } else if (filtros.dataInicio) {
+        periodo = `A partir de ${formatarData(filtros.dataInicio)}`;
+    } else if (filtros.dataFim) {
+        periodo = `Até ${formatarData(filtros.dataFim)}`;
+    }
+
+    doc
+        .fontSize(18)
+        .text(tipo, { align: 'center' })
+        .moveDown(0.5);
+        
+    doc
+        .fontSize(12)
+        .text(`Período: ${periodo}`, { align: 'center' })
+        .text(`Gerado em: ${dataAtual}`, { align: 'center' })
+        .moveDown(1);
+        
+    return doc;
+}
+
+// Rota para buscar dados do relatório (sem gerar PDF)
+router.post('/dados-relatorio', verificarAuth, async (req, res) => {
+    try {
+        const { tipo, filtros } = req.body;
+        const dados = await buscarFrequencias(filtros);
+        
+        // Formatar os dados para o relatório
+        const relatorio = {
+            tipo,
+            filtros,
+            dataGeracao: new Date().toISOString(),
+            itens: dados.map(item => ({
+                nome: item.nome || '',
+                data: formatarData(item.data),
+                tipo: item.tipo || '',
+                cidade: item.cidade || '',
+                estado: item.estado || ''
+            }))
+        };
+        
+        res.json(relatorio);
+    } catch (error) {
+        console.error('Erro ao buscar dados do relatório:', error);
+        res.status(500).json({ 
+            error: 'Erro ao buscar dados do relatório',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// Rota para exportar PDF (mantida para compatibilidade)
 router.post('/pdf', verificarAuth, async (req, res) => {
     const { tipo, filtros } = req.body;
-    const tempDir = tmpdir();
-    const timestamp = new Date().getTime();
-    const filename = `relatorio_${timestamp}.pdf`;
-    const filePath = join(tempDir, filename);
+    const filename = `relatorio_${new Date().getTime()}.pdf`;
     
     try {
         const dados = await buscarFrequencias(filtros);
-        const html = gerarHTMLRelatorio(tipo, dados, filtros);
         
-        // Usando html-pdf-node para gerar o PDF
-        const { generatePdf } = require('html-pdf-node');
+        // Configuração do PDF usando uma abordagem mais robusta
+        let PDFDocument;
+        try {
+            // Tenta carregar o PDFKit de forma dinâmica
+            PDFDocument = require('pdfkit');
+            
+            // Verifica se o PDFKit foi carregado corretamente
+            if (typeof PDFDocument !== 'function') {
+                throw new Error('PDFKit não foi carregado corretamente');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar o PDFKit:', error);
+            return res.status(500).json({ 
+                error: 'Erro ao carregar a biblioteca de geração de PDF',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
         
-        // Opções para o PDF
-        const options = {
-            format: 'A4',
-            margin: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
-            printBackground: true,
-            preferCSSPageSize: true,
-            displayHeaderFooter: false,
-        };
+        // Cria o documento PDF
+        const doc = new PDFDocument({
+            size: 'A4',
+            margins: { top: 50, left: 50, right: 50, bottom: 50 },
+            bufferPages: true,
+            autoFirstPage: true
+        });
         
-        const file = { content: html };
-        const pdfBuffer = await generatePdf(file, options);
-        
-        // Enviar o PDF como resposta
+        // Configura o cabeçalho da resposta
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.send(pdfBuffer);
+        
+        // Configuração da resposta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        // Pipe do PDF para a resposta
+        doc.pipe(res);
+        
+        // Adicionar cabeçalho
+        adicionarCabecalho(doc, tipo, filtros);
+        
+        // Configurações de estilo
+        const tableTop = 150;
+        const itemHeight = 20;
+        const pageWidth = doc.page.width - 100;
+        const col1 = 50;  // Nome
+        const col2 = 300; // Data
+        const col3 = 400; // Tipo
+        
+        // Cabeçalho da tabela
+        doc.font('Helvetica-Bold')
+           .fontSize(10)
+           .text('Nome', col1, tableTop)
+           .text('Data', col2, tableTop)
+           .text('Tipo', col3, tableTop);
+        
+        // Linha divisória
+        doc.moveTo(50, tableTop + 15)
+           .lineTo(pageWidth + 50, tableTop + 15)
+           .stroke();
+        
+        // Adicionar dados
+        let y = tableTop + 30;
+        doc.font('Helvetica').fontSize(10);
+        
+        for (const item of dados) {
+            // Quebra de página se necessário
+            if (y > doc.page.height - 100) {
+                doc.addPage();
+                y = 50;
+                // Adicionar cabeçalho em cada nova página
+                adicionarCabecalho(doc, tipo, filtros);
+                // Cabeçalho da tabela
+                doc.font('Helvetica-Bold')
+                   .fontSize(10)
+                   .text('Nome', col1, y)
+                   .text('Data', col2, y)
+                   .text('Tipo', col3, y);
+                y += 30;
+            }
+            
+            doc.text(item.nome || '', col1, y, { width: 230, ellipsis: true })
+               .text(formatarData(item.data), col2, y)
+               .text(item.tipo || '', col3, y);
+               
+            y += itemHeight;
+        }
+        
+        // Número da página
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(10)
+               .text(
+                   `Página ${i + 1} de ${pages.count}`,
+                   doc.page.width - 100,
+                   doc.page.height - 40
+               );
+        }
+        
+        // Finalizar o documento
+        doc.end();
         
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);
-        res.status(500).json({ 
-            error: 'Erro ao gerar PDF',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-    } finally {
-        // Limpar arquivo temporário se existir
-        try {
-            await unlink(filePath).catch(() => {});
-        } catch (e) {
-            console.error('Erro ao limpar arquivo temporário:', e);
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                error: 'Erro ao gerar PDF',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
         }
     }
 });
