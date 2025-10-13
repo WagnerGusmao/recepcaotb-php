@@ -7,6 +7,69 @@
     <title>Painel - Sistema de Frequência</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- jsPDF via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
+            integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" 
+            crossorigin="anonymous" 
+            referrerpolicy="no-referrer">
+    </script>
+    
+    <!-- Adicionando html2canvas para melhor suporte a elementos HTML -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <script>
+        // Configuração global para jsPDF
+        (function() {
+            // Função para verificar se o jsPDF está disponível
+            function verificarJsPDF() {
+                // Verificar se está disponível como módulo UMD (versão mais recente)
+                if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+                    console.log('✅ jsPDF carregado via UMD');
+                    return true;
+                }
+                // Verificar se está disponível globalmente (versões antigas)
+                else if (typeof window.jsPDF === 'function') {
+                    console.log('✅ jsPDF carregado globalmente');
+                    return true;
+                }
+                // Verificar se está disponível como variável global (outro padrão)
+                else if (typeof jsPDF === 'function') {
+                    console.log('✅ jsPDF carregado como variável global');
+                    return true;
+                }
+                
+                console.warn('❌ jsPDF não foi carregado corretamente');
+                return false;
+            }
+            
+            // Função para obter a referência correta do jsPDF
+            function obterJsPDF() {
+                if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+                    return window.jspdf.jsPDF;
+                } else if (typeof window.jsPDF === 'function') {
+                    return window.jsPDF;
+                } else if (typeof jsPDF === 'function') {
+                    return jsPDF;
+                }
+                throw new Error('jsPDF não está disponível');
+            }
+            
+            // Expor funções globalmente
+            window.verificarJsPDF = verificarJsPDF;
+            window.obterJsPDF = obterJsPDF;
+            
+            // Verificar quando o DOM estiver pronto
+            document.addEventListener('DOMContentLoaded', function() {
+                if (verificarJsPDF()) {
+                    console.log('jsPDF está pronto para uso');
+                } else {
+                    console.warn('jsPDF não está disponível');
+                }
+            });
+        })();
+    </script>
+    
     <script src="js/script.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -968,14 +1031,21 @@
                 // Criar título com período selecionado
                 let tituloPeriodo = '';
                 if (dataInicio && dataFim) {
-                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
-                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    // Ajustar para o fuso horário local para evitar mudança de data
+                    const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+                    const dataFimObj = new Date(dataFim + 'T00:00:00');
+                    
+                    const dataInicioFormatada = dataInicioObj.toLocaleDateString('pt-BR');
+                    const dataFimFormatada = dataFimObj.toLocaleDateString('pt-BR');
+                    
                     tituloPeriodo = ` (${dataInicioFormatada} a ${dataFimFormatada})`;
                 } else if (dataInicio) {
-                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+                    const dataInicioFormatada = dataInicioObj.toLocaleDateString('pt-BR');
                     tituloPeriodo = ` (a partir de ${dataInicioFormatada})`;
                 } else if (dataFim) {
-                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    const dataFimObj = new Date(dataFim + 'T00:00:00');
+                    const dataFimFormatada = dataFimObj.toLocaleDateString('pt-BR');
                     tituloPeriodo = ` (até ${dataFimFormatada})`;
                 }
                 
@@ -1170,14 +1240,21 @@
                 // Criar título com período selecionado
                 let tituloPeriodo = '';
                 if (dataInicio && dataFim) {
-                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
-                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    // Ajustar para o fuso horário local para evitar mudança de data
+                    const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+                    const dataFimObj = new Date(dataFim + 'T00:00:00');
+                    
+                    const dataInicioFormatada = dataInicioObj.toLocaleDateString('pt-BR');
+                    const dataFimFormatada = dataFimObj.toLocaleDateString('pt-BR');
+                    
                     tituloPeriodo = ` (${dataInicioFormatada} a ${dataFimFormatada})`;
                 } else if (dataInicio) {
-                    const dataInicioFormatada = new Date(dataInicio).toLocaleDateString('pt-BR');
+                    const dataInicioObj = new Date(dataInicio + 'T00:00:00');
+                    const dataInicioFormatada = dataInicioObj.toLocaleDateString('pt-BR');
                     tituloPeriodo = ` (a partir de ${dataInicioFormatada})`;
                 } else if (dataFim) {
-                    const dataFimFormatada = new Date(dataFim).toLocaleDateString('pt-BR');
+                    const dataFimObj = new Date(dataFim + 'T00:00:00');
+                    const dataFimFormatada = dataFimObj.toLocaleDateString('pt-BR');
                     tituloPeriodo = ` (até ${dataFimFormatada})`;
                 }
                 
@@ -1565,7 +1642,7 @@
             }, 500);
         }
 
-        function exportarPDF(button) {
+        async function exportarPDF(button) {
             console.log('🔄 Iniciando exportação PDF...');
             
             const tabela = document.querySelector('#relatorioResultado table');
@@ -1578,191 +1655,256 @@
             console.log('✅ Tabela encontrada:', tabela);
             setButtonLoading(button, true);
             
-            // Função alternativa usando CDN diferente
-            function tentarCarregarAlternativo() {
-                console.log('🔄 Tentando CDN alternativo...');
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
-                script.onload = () => {
-                    console.log('✅ jsPDF alternativo carregado');
-                    setTimeout(() => {
-                        if (window.jsPDF) {
-                            gerarPDFSimples();
-                        } else {
-                            console.error('❌ Falha mesmo com CDN alternativo');
-                            alert('Não foi possível carregar a biblioteca PDF. Tente usar CSV ou XLSX.');
-                            setButtonLoading(button, false);
-                        }
-                    }, 500);
-                };
-                script.onerror = () => {
-                    console.error('❌ CDN alternativo também falhou');
-                    alert('Erro ao carregar PDF. Use CSV ou XLSX como alternativa.');
-                    setButtonLoading(button, false);
-                };
-                document.head.appendChild(script);
-            }
-
-            // Função simplificada para gerar PDF sem autoTable
-            function gerarPDFSimples() {
-                try {
-                    console.log('📄 Iniciando geração do PDF simples...');
-                    console.log('window.jsPDF:', window.jsPDF);
-                    console.log('typeof window.jsPDF:', typeof window.jsPDF);
+            try {
+                // Carregar bibliotecas necessárias
+                const [jsPDF, html2canvas] = await Promise.all([
+                    carregarJsPDF(),
+                    carregarHtml2Canvas()
+                ]);
+                
+                console.log('✅ Bibliotecas carregadas com sucesso');
+                
+                // Criar o documento PDF
+                const doc = new jsPDF();
+                console.log('✅ Documento PDF criado');
+                
+                // Título do relatório
+                const titulo = window.relatorioAtual?.tipo || 'Relatório';
+                doc.setFontSize(16);
+                doc.text(titulo, 20, 20);
+                doc.setFontSize(10);
+                doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 20, 30);
+                console.log('✅ Título adicionado:', titulo);
+                
+                // Extrair dados da tabela
+                const linhas = [];
+                const rows = tabela.querySelectorAll('tr');
+                
+                let yPosition = 50;
+                const lineHeight = 6;
+                const pageHeight = 280;
+                
+                // Processar cada linha da tabela
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const cells = row.querySelectorAll('th, td');
+                    let linha = [];
                     
-                    // Tentar diferentes formas de acessar jsPDF
-                    let jsPDFClass;
+                    // Extrair conteúdo das células
+                    cells.forEach(cell => {
+                        linha.push(cell.textContent.trim());
+                    });
                     
-                    // Verificar se é um objeto com propriedade jsPDF
-                    if (window.jsPDF && window.jsPDF.jsPDF && typeof window.jsPDF.jsPDF === 'function') {
-                        jsPDFClass = window.jsPDF.jsPDF;
-                        console.log('✅ Usando window.jsPDF.jsPDF');
-                    }
-                    // Verificar se window.jsPDF é diretamente a função
-                    else if (window.jsPDF && typeof window.jsPDF === 'function') {
-                        jsPDFClass = window.jsPDF;
-                        console.log('✅ Usando window.jsPDF diretamente');
-                    }
-                    // Verificar se existe uma variável global jsPDF
-                    else if (typeof jsPDF !== 'undefined' && typeof jsPDF === 'function') {
-                        jsPDFClass = jsPDF;
-                        console.log('✅ Usando jsPDF global');
-                    }
-                    // Verificar se existe no window
-                    else if (window.jsPDF && window.jsPDF.default && typeof window.jsPDF.default === 'function') {
-                        jsPDFClass = window.jsPDF.default;
-                        console.log('✅ Usando window.jsPDF.default');
-                    }
-                    else {
-                        console.error('❌ jsPDF não encontrado em nenhuma forma');
-                        console.log('Disponível no window:', Object.keys(window).filter(k => k.toLowerCase().includes('pdf')));
-                        throw new Error('jsPDF não encontrado após carregamento');
+                    // Verificar se precisa de nova página
+                    if (yPosition > pageHeight) {
+                        doc.addPage();
+                        yPosition = 20;
                     }
                     
-                    console.log('✅ jsPDF encontrado:', typeof jsPDFClass);
-                    const doc = new jsPDFClass();
-                    console.log('✅ Documento PDF criado');
-
-                    // Título do relatório
-                    const titulo = window.relatorioAtual?.tipo || 'Relatório';
-                    doc.setFontSize(16);
-                    doc.text(titulo, 20, 20);
-                    doc.setFontSize(10);
-                    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 20, 30);
-                    console.log('✅ Título adicionado:', titulo);
-
-                    // Extrair dados da tabela de forma simples
-                    const linhas = [];
-                    const rows = tabela.querySelectorAll('tr');
+                    // Estilizar cabeçalho
+                    if (i === 0) {
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'bold');
+                    } else {
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'normal');
+                    }
                     
-                    let yPosition = 50;
-                    const lineHeight = 6;
-                    const pageHeight = 280;
+                    // Adicionar linha ao PDF
+                    const text = linha.join(' | ');
+                    const maxWidth = 170;
+                    const lines = doc.splitTextToSize(text, maxWidth);
                     
-                    rows.forEach((row, index) => {
-                        const cells = row.querySelectorAll('th, td');
-                        let linha = '';
-                        
-                        cells.forEach((cell, cellIndex) => {
-                            if (cellIndex > 0) linha += ' | ';
-                            linha += cell.textContent.trim();
-                        });
-                        
-                        // Verificar se precisa de nova página
+                    // Adicionar cada linha de texto
+                    for (let j = 0; j < lines.length; j++) {
                         if (yPosition > pageHeight) {
                             doc.addPage();
                             yPosition = 20;
                         }
+                        doc.text(lines[j], 20, yPosition);
+                        yPosition += lineHeight;
+                    }
+                    
+                    yPosition += 2; // Espaço extra entre linhas
+                }
+                
+                // Adicionar o gráfico de cidades ao PDF, se estiver visível
+                const graficoCidades = document.getElementById('graficoTop10Cidades');
+                const graficoContainer = graficoCidades ? graficoCidades.closest('#graficoContainer') : null;
+                
+                if (graficoContainer && graficoContainer.offsetWidth > 0) {
+                    try {
+                        // Adicionar nova página para o gráfico
+                        doc.addPage();
                         
-                        // Usar fonte menor para cabeçalho
-                        if (index === 0) {
-                            doc.setFontSize(8);
-                            doc.setFont(undefined, 'bold');
-                        } else {
-                            doc.setFontSize(7);
-                            doc.setFont(undefined, 'normal');
-                        }
+                        // Título da seção
+                        doc.setFontSize(16);
+                        doc.setTextColor(0, 0, 0); // Preto
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Gráfico de Frequência por Cidade', 20, 20);
                         
-                        // Quebrar linha longa
-                        const maxWidth = 170;
-                        const linhas = doc.splitTextToSize(linha, maxWidth);
-                        
-                        linhas.forEach(l => {
-                            doc.text(l, 20, yPosition);
-                            yPosition += lineHeight;
+                        // Capturar o gráfico como imagem
+                        const canvas = await html2canvas(graficoContainer, {
+                            scale: 2, // Melhora a qualidade da imagem
+                            useCORS: true,
+                            logging: false,
+                            backgroundColor: '#FFFFFF',
+                            allowTaint: true,
+                            removeContainer: false
                         });
                         
-                        yPosition += 2; // Espaço extra entre linhas
-                    });
-                    
-                    console.log('✅ Conteúdo adicionado ao PDF');
-
-                    // Salvar PDF
-                    const nomeArquivo = `relatorio_${new Date().toISOString().split('T')[0]}.pdf`;
-                    doc.save(nomeArquivo);
-                    console.log('✅ PDF salvo:', nomeArquivo);
-                    
-                    alert('PDF gerado com sucesso!');
-                    
-                    // Desabilitar loading após salvar
-                    setTimeout(() => {
-                        setButtonLoading(button, false);
-                    }, 500);
-                    
-                } catch (error) {
-                    console.error('❌ Erro na geração do PDF:', error);
-                    alert('Erro ao gerar PDF: ' + error.message);
-                    setButtonLoading(button, false);
+                        // Adicionar a imagem ao PDF
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgProps = doc.getImageProperties(imgData);
+                        
+                        // Calcular dimensões mantendo a proporção
+                        const margin = 20;
+                        const maxWidth = doc.internal.pageSize.getWidth() - (2 * margin);
+                        const maxHeight = doc.internal.pageSize.getHeight() - 60; // Deixa espaço para o título
+                        
+                        let imgWidth = imgProps.width;
+                        let imgHeight = imgProps.height;
+                        
+                        // Redimensionar mantendo a proporção
+                        if (imgWidth > maxWidth) {
+                            const ratio = maxWidth / imgWidth;
+                            imgWidth = maxWidth;
+                            imgHeight = imgHeight * ratio;
+                        }
+                        
+                        if (imgHeight > maxHeight) {
+                            const ratio = maxHeight / imgHeight;
+                            imgHeight = maxHeight;
+                            imgWidth = imgWidth * ratio;
+                        }
+                        
+                        // Centralizar o gráfico na página
+                        const x = (doc.internal.pageSize.getWidth() - imgWidth) / 2;
+                        const y = 40; // Abaixo do título
+                        
+                        doc.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+                        console.log('✅ Gráfico de cidades adicionado ao PDF');
+                        
+                        // Adicionar legenda se disponível
+                        const listaCidades = document.getElementById('listaCidades');
+                        if (listaCidades) {
+                            const startY = y + imgHeight + 10;
+                            if (startY < doc.internal.pageSize.getHeight() - 30) {
+                                doc.setFontSize(10);
+                                doc.setFont(undefined, 'normal');
+                                doc.setTextColor(100);
+                                doc.text('Legenda:', 20, startY);
+                                
+                                // Adicionar itens da legenda
+                                const itensLegenda = Array.from(listaCidades.querySelectorAll('div')).slice(0, 10);
+                                let currentY = startY + 8;
+                                
+                                itensLegenda.forEach((item, index) => {
+                                    if (currentY > doc.internal.pageSize.getHeight() - 20) {
+                                        doc.addPage();
+                                        currentY = 20;
+                                    }
+                                    
+                                    const texto = item.textContent.trim();
+                                    doc.text(texto, 25, currentY);
+                                    currentY += 6;
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Erro ao adicionar gráfico ao PDF:', error);
+                        // Continuar mesmo se houver erro no gráfico
+                    }
                 }
-            }
-
-            // Verificar se jsPDF está disponível
-            if (typeof window.jsPDF === 'undefined' && typeof jsPDF === 'undefined') {
-                console.log('📦 Carregando jsPDF...');
                 
-                // Carregar apenas jsPDF (sem autoTable para simplificar)
+                // Salvar o PDF
+                const nomeArquivo = `relatorio_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(nomeArquivo);
+                console.log('✅ PDF gerado com sucesso:', nomeArquivo);
+                
+                // Mostrar mensagem de sucesso
+                alert('PDF gerado com sucesso!');
+                
+            } catch (error) {
+                console.error('❌ Erro ao gerar PDF:', error);
+                alert('Erro ao gerar PDF: ' + (error.message || 'Erro desconhecido'));
+            } finally {
+                // Desativar o estado de carregando
+                setButtonLoading(button, false);
+            }
+        }
+        
+        // Função para carregar o jsPDF
+        function carregarJsPDF() {
+            return new Promise((resolve, reject) => {
+                // Verificar se já está carregado
+                if (window.jspdf && window.jspdf.jsPDF) {
+                    return resolve(window.jspdf.jsPDF);
+                } else if (window.jsPDF) {
+                    return resolve(window.jsPDF);
+                } else if (typeof jsPDF === 'function') {
+                    return resolve(jsPDF);
+                }
+                
+                // Se não estiver carregado, carregar o script
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.integrity = 'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==';
+                script.crossOrigin = 'anonymous';
+                
                 script.onload = () => {
-                    console.log('✅ Script jsPDF carregado');
-                    console.log('window após carregamento:', Object.keys(window).filter(k => k.toLowerCase().includes('pdf')));
-                    
-                    // Aguardar mais tempo para garantir inicialização
-                    let tentativas = 0;
-                    const maxTentativas = 10;
-                    
-                    const verificarJsPDF = () => {
-                        tentativas++;
-                        console.log(`🔍 Tentativa ${tentativas} de verificar jsPDF...`);
-                        
-                        if (window.jsPDF || typeof jsPDF !== 'undefined') {
-                            console.log('✅ jsPDF encontrado após', tentativas, 'tentativas');
-                            console.log('window.jsPDF:', window.jsPDF);
-                            console.log('global jsPDF:', typeof jsPDF !== 'undefined' ? jsPDF : 'não encontrado');
-                            gerarPDFSimples();
-                        } else if (tentativas < maxTentativas) {
-                            console.log('⏳ jsPDF ainda não disponível, tentando novamente...');
-                            setTimeout(verificarJsPDF, 100);
+                    // Dar um tempo para o script ser processado
+                    setTimeout(() => {
+                        if (window.jspdf && window.jspdf.jsPDF) {
+                            resolve(window.jspdf.jsPDF);
+                        } else if (window.jsPDF) {
+                            resolve(window.jsPDF);
+                        } else if (typeof jsPDF === 'function') {
+                            resolve(jsPDF);
                         } else {
-                            console.error('❌ jsPDF não foi encontrado após', maxTentativas, 'tentativas');
-                            console.log('🔄 Tentando CDN alternativo...');
-                            tentarCarregarAlternativo();
+                            reject(new Error('Não foi possível carregar o jsPDF'));
                         }
-                    };
-                    
-                    // Iniciar verificação após um pequeno delay
-                    setTimeout(verificarJsPDF, 100);
+                    }, 100);
                 };
-                script.onerror = (error) => {
-                    console.error('❌ Erro ao carregar jsPDF do CDNJS:', error);
-                    console.log('🔄 Tentando CDN alternativo...');
-                    tentarCarregarAlternativo();
+                
+                script.onerror = () => {
+                    reject(new Error('Falha ao carregar a biblioteca jsPDF'));
                 };
+                
                 document.head.appendChild(script);
-            } else {
-                console.log('✅ jsPDF já disponível');
-                gerarPDFSimples();
-            }
+            });
+        }
+        
+        // Função para carregar o html2canvas
+        function carregarHtml2Canvas() {
+            return new Promise((resolve, reject) => {
+                // Verificar se já está carregado
+                if (window.html2canvas) {
+                    return resolve(window.html2canvas);
+                }
+                
+                // Se não estiver carregado, carregar o script
+                const script = document.createElement('script');
+                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                script.crossOrigin = 'anonymous';
+                
+                script.onload = () => {
+                    // Dar um tempo para o script ser processado
+                    setTimeout(() => {
+                        if (window.html2canvas) {
+                            resolve(window.html2canvas);
+                        } else {
+                            reject(new Error('Não foi possível carregar o html2canvas'));
+                        }
+                    }, 100);
+                };
+                
+                script.onerror = () => {
+                    reject(new Error('Falha ao carregar a biblioteca html2canvas'));
+                };
+                
+                document.head.appendChild(script);
+            });
         }
 
         function exportarXLSX(button) {

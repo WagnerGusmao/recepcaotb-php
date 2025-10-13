@@ -5,7 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - Sistema de Frequência</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- jsPDF com versão mais recente e estável -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js.map"></script>
+    <script>
+        // Inicialização global do jsPDF
+        window.jspdf = window.jspdf || {};
+        window.jspdf.jsPDF = window.jspdf.jsPDF || {};
+        
+        // Função para verificar se o jsPDF está carregado corretamente
+        function verificarJSPDF() {
+            if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+                console.log('jsPDF carregado com sucesso!', window.jspdf);
+                return true;
+            } else {
+                console.error('Erro ao carregar o jsPDF');
+                return false;
+            }
+        }
+        
+        // Verificar quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', verificarJSPDF);
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .header {
@@ -776,9 +797,7 @@
             }
         }
 
-        function exportarPDF() {
-            alert('Função de exportar PDF será implementada');
-        }
+        // A função exportarPDF está definida na classe SistemaFrequencia em script.js
 
         function exportarCSV() {
             alert('Função de exportar CSV será implementada');

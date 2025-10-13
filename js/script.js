@@ -343,44 +343,58 @@ class SistemaFrequencia {
     }
 
     setupCadastro() {
+        // Elementos do formulário
         const form = document.getElementById('formCadastro');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.cadastrarPessoa();
-        });
+        const cpfInput = document.getElementById('cpf');
+        const telefoneInput = document.getElementById('telefone');
+        const estadoInput = document.getElementById('estado');
+        
+        // Verificar se o formulário existe antes de adicionar o event listener
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.cadastrarPessoa();
+            });
+        }
 
-        // Máscara para CPF
-        document.getElementById('cpf').addEventListener('input', (e) => {
-            let value = e.target.value.replace(/\D/g, '');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-            e.target.value = value;
-        });
+        // Verificar se o campo CPF existe antes de adicionar a máscara
+        if (cpfInput) {
+            cpfInput.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                e.target.value = value;
+            });
+        }
 
-        // Máscara para telefone
-        document.getElementById('telefone').addEventListener('input', (e) => {
-            let value = e.target.value.replace(/\D/g, '');
-            value = value.replace(/(\d{2})(\d)/, '($1) $2');
-            value = value.replace(/(\d{5})(\d)/, '$1-$2');
-            e.target.value = value;
-        });
+        // Máscara para telefone (se o elemento existir)
+        if (telefoneInput) {
+            telefoneInput.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                e.target.value = value;
+            });
+        }
 
-        // Máscara para Estado (2 caracteres maiúsculos)
-        document.getElementById('estado').addEventListener('input', (e) => {
-            let value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
-            if (value.length > 2) value = value.substring(0, 2);
-            e.target.value = value;
-        });
+        // Máscara para Estado (2 caracteres maiúsculos) - se o elemento existir
+        if (estadoInput) {
+            estadoInput.addEventListener('input', (e) => {
+                let value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+                if (value.length > 2) value = value.substring(0, 2);
+                e.target.value = value;
+            });
+        }
 
         // Controle de estados e cidades
         this.setupEstadosCidades();
         
         // Definir São Paulo como padrão
-        document.getElementById('estado').value = 'SP';
-        this.carregarCidades('cidade', 'SP', estadosCidades);
-
-
+        if (estadoInput) {
+            estadoInput.value = 'SP';
+            this.carregarCidades('cidade', 'SP', estadosCidades);
+        }
 
         // Validação em tempo real
         const campos = ['nome', 'cpf', 'nascimento', 'religiao', 'cidade', 'estado', 'telefone', 'email'];
@@ -469,42 +483,69 @@ class SistemaFrequencia {
     }
 
     setupFrequencia() {
+        // Verificar e configurar campo de busca de pessoa
         const buscaPessoa = document.getElementById('buscaPessoa');
-        buscaPessoa.addEventListener('input', (e) => {
-            this.buscarPessoa(e.target.value);
-        });
-        buscaPessoa.addEventListener('keyup', (e) => {
-            this.buscarPessoa(e.target.value);
-        });
+        if (buscaPessoa) {
+            const buscarHandler = (e) => this.buscarPessoa(e.target.value);
+            buscaPessoa.addEventListener('input', buscarHandler);
+            buscaPessoa.addEventListener('keyup', buscarHandler);
+        } else {
+            console.warn('Elemento #buscaPessoa não encontrado na página');
+        }
 
-        document.getElementById('marcarFrequencia').addEventListener('click', () => {
-            this.marcarFrequencia();
-        });
+        // Verificar e configurar botão de marcar frequência
+        const btnMarcarFrequencia = document.getElementById('marcarFrequencia');
+        if (btnMarcarFrequencia) {
+            btnMarcarFrequencia.addEventListener('click', () => this.marcarFrequencia());
+        } else {
+            console.warn('Elemento #marcarFrequencia não encontrado na página');
+        }
 
-        document.getElementById('atualizarPessoa').addEventListener('click', () => {
-            this.atualizarPessoa();
-        });
+        // Verificar e configurar botão de atualizar pessoa
+        const btnAtualizarPessoa = document.getElementById('atualizarPessoa');
+        if (btnAtualizarPessoa) {
+            btnAtualizarPessoa.addEventListener('click', () => this.atualizarPessoa());
+        } else {
+            console.warn('Elemento #atualizarPessoa não encontrado na página');
+        }
 
 
 
         // Controlar exibição de campos de senha baseado no tipo
-        document.querySelectorAll('input[name="tipoPresenca"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                const senhasNormais = document.getElementById('senhasNormais');
-                const senhasPet = document.getElementById('senhasPet');
+        const radiosTipoPresenca = document.querySelectorAll('input[name="tipoPresenca"]');
+        if (radiosTipoPresenca.length > 0) {
+            const senhasNormais = document.getElementById('senhasNormais');
+            const senhasPet = document.getElementById('senhasPet');
+            
+            // Função para atualizar a exibição baseada no tipo selecionado
+            const atualizarExibicao = (tipo) => {
+                if (!senhasNormais || !senhasPet) return;
                 
-                if (radio.value === 'pet') {
+                if (tipo === 'pet') {
                     senhasNormais.style.display = 'none';
                     senhasPet.style.display = 'block';
                 } else {
                     senhasNormais.style.display = 'block';
                     senhasPet.style.display = 'none';
                 }
+            };
+            
+            // Adicionar evento de mudança para cada radio button
+            radiosTipoPresenca.forEach(radio => {
+                radio.addEventListener('change', (e) => atualizarExibicao(e.target.value));
+                
+                // Inicializar estado baseado no radio marcado por padrão
+                if (radio.checked) {
+                    atualizarExibicao(radio.value);
+                }
             });
-        });
+        }
 
         // Definir data atual como padrão
-        document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
+        const dataFrequencia = document.getElementById('dataFrequencia');
+        if (dataFrequencia) {
+            dataFrequencia.value = new Date().toISOString().split('T')[0];
+        }
     }
 
     async buscarPessoa(termo) {
@@ -1251,6 +1292,7 @@ class SistemaFrequencia {
             message: 'Preparando documento...',
             estimatedTime: 10,
             steps: [
+                { text: 'Verificando dependências' },
                 { text: 'Coletando dados' },
                 { text: 'Formatando documento' },
                 { text: 'Adicionando conteúdo' },
@@ -1259,14 +1301,36 @@ class SistemaFrequencia {
         });
 
         try {
-            progressTimer.nextStep(timerId, 'Validando dependências...');
+            progressTimer.nextStep(timerId, 'Verificando dependências...');
             
             // Verificar se o jsPDF está disponível
-            if (typeof window.jspdf === 'undefined') {
-                throw new Error('Biblioteca jsPDF não carregada corretamente');
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                console.error('jsPDF não encontrado. Tentando carregar...');
+                
+                // Tentar carregar o jsPDF dinamicamente
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = () => {
+                        window.jspdf = window.jspdf || {};
+                        window.jspdf.jsPDF = window.jspdf.jsPDF || {};
+                        console.log('jsPDF carregado com sucesso!');
+                        resolve();
+                    };
+                    script.onerror = () => {
+                        reject(new Error('Falha ao carregar a biblioteca jsPDF'));
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // Verificar novamente após tentativa de carregamento
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                throw new Error('Não foi possível carregar a biblioteca jsPDF. Verifique sua conexão com a internet.');
             }
             
             // Obter os dados do formulário
+            progressTimer.nextStep(timerId, 'Coletando dados...');
             const tipo = document.getElementById('tipoRelatorio')?.value || 'Relatório de Frequência';
             const dataInicio = document.getElementById('dataInicio')?.value || '';
             const dataFim = document.getElementById('dataFim')?.value || '';
@@ -1902,20 +1966,35 @@ class SistemaFrequencia {
 
     setupEstadosCidades() {
         // Evento para o select de estado no cadastro
-        document.getElementById('estado').addEventListener('change', (e) => {
-            this.carregarCidades('cidade', e.target.value, estadosCidades);
-        });
+        const estadoSelect = document.getElementById('estado');
+        if (estadoSelect) {
+            estadoSelect.addEventListener('change', (e) => {
+                this.carregarCidades('cidade', e.target.value, estadosCidades);
+            });
+        }
 
-        // Evento para o select de estado na edição
-        document.getElementById('editEstado').addEventListener('change', (e) => {
-            this.carregarCidades('editCidade', e.target.value, estadosCidades);
-        });
+        // Evento para o select de estado na edição (se existir)
+        const editEstadoSelect = document.getElementById('editEstado');
+        if (editEstadoSelect) {
+            editEstadoSelect.addEventListener('change', (e) => {
+                this.carregarCidades('editCidade', e.target.value, estadosCidades);
+            });
+        }
     }
 
     carregarCidades(selectId, estado, cidades) {
         const selectCidade = document.getElementById(selectId);
+        
+        // Verificar se o select existe antes de manipulá-lo
+        if (!selectCidade) {
+            console.warn(`Elemento com ID '${selectId}' não encontrado.`);
+            return;
+        }
+        
+        // Limpar o select e adicionar a opção padrão
         selectCidade.innerHTML = '<option value="">Selecione a Cidade</option>';
         
+        // Adicionar as cidades do estado selecionado, se houver
         if (estado && cidades[estado]) {
             cidades[estado].forEach(cidade => {
                 const option = document.createElement('option');

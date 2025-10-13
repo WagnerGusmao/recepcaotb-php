@@ -7,7 +7,27 @@
     <title>Sistema de Frequência</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF com inicialização global -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Inicialização global do jsPDF
+        window.jspdf = window.jspdf || {};
+        window.jspdf.jsPDF = window.jspdf.jsPDF || {};
+        
+        // Função para verificar se o jsPDF está carregado corretamente
+        function verificarJSPDF() {
+            if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+                console.log('jsPDF carregado com sucesso!', window.jspdf);
+                return true;
+            } else {
+                console.error('Erro ao carregar o jsPDF');
+                return false;
+            }
+        }
+        
+        // Verificar quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', verificarJSPDF);
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
