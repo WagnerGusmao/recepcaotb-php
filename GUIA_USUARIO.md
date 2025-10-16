@@ -2,6 +2,8 @@
 
 Manual completo para utilização do Sistema de Recepção Terra do Bugio.
 
+> **🎉 Versão 1.1.0**: Sistema com interface melhorada, formulários padronizados e base de dados limpa para melhor experiência do usuário!
+
 ## 📋 Índice
 
 - [Primeiros Passos](#primeiros-passos)

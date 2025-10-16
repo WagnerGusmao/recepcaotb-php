@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const backupManager = require('../backupManagerMySQL');
+const backupManager = require('../backupManager');
 const { verificarAuth, verificarTipo } = require('../auth');
 const path = require('path');
 const fs = require('fs');

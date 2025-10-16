@@ -17,6 +17,7 @@
     
     <!-- Adicionando html2canvas para melhor suporte a elementos HTML -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="js/municipios-completos.js"></script>
     
     <script>
         // Função para abrir a página de backup/restore
@@ -164,36 +165,38 @@
                     <option value="Outras">Outras</option>
                     <option value="Não informar">Não informar</option>
                 </select>
-                <input type="text" id="editCidade" placeholder="Cidade">
                 <select id="editEstado">
                     <option value="">Estado</option>
-                    <option value="SP">São Paulo</option>
-                    <option value="RJ">Rio de Janeiro</option>
-                    <option value="MG">Minas Gerais</option>
-                    <option value="PR">Paraná</option>
-                    <option value="SC">Santa Catarina</option>
-                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="AC">Acre</option>
+                    <option value="AL">Alagoas</option>
+                    <option value="AP">Amapá</option>
+                    <option value="AM">Amazonas</option>
                     <option value="BA">Bahia</option>
-                    <option value="GO">Goiás</option>
+                    <option value="CE">Ceará</option>
                     <option value="DF">Distrito Federal</option>
                     <option value="ES">Espírito Santo</option>
+                    <option value="GO">Goiás</option>
+                    <option value="MA">Maranhão</option>
                     <option value="MT">Mato Grosso</option>
                     <option value="MS">Mato Grosso do Sul</option>
-                    <option value="PE">Pernambuco</option>
-                    <option value="CE">Ceará</option>
+                    <option value="MG">Minas Gerais</option>
                     <option value="PA">Pará</option>
-                    <option value="AM">Amazonas</option>
-                    <option value="RO">Rondônia</option>
-                    <option value="AC">Acre</option>
-                    <option value="RR">Roraima</option>
-                    <option value="AP">Amapá</option>
-                    <option value="TO">Tocantins</option>
-                    <option value="MA">Maranhão</option>
-                    <option value="PI">Piauí</option>
-                    <option value="AL">Alagoas</option>
-                    <option value="SE">Sergipe</option>
                     <option value="PB">Paraíba</option>
+                    <option value="PR">Paraná</option>
+                    <option value="PE">Pernambuco</option>
+                    <option value="PI">Piauí</option>
+                    <option value="RJ">Rio de Janeiro</option>
                     <option value="RN">Rio Grande do Norte</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="RO">Rondônia</option>
+                    <option value="RR">Roraima</option>
+                    <option value="SC">Santa Catarina</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="SE">Sergipe</option>
+                    <option value="TO">Tocantins</option>
+                </select>
+                <select id="editCidade">
+                    <option value="">Selecione primeiro o estado</option>
                 </select>
                 <input type="tel" id="editTelefone" placeholder="Telefone">
                 <input type="email" id="editEmail" placeholder="E-mail">
@@ -246,11 +249,22 @@
                 </div>
                 <div>
                     <label for="cadastroReligiao">Religião</label>
-                    <input type="text" id="cadastroReligiao" placeholder="Religião">
-                </div>
-                <div>
-                    <label for="cadastroCidade">Cidade</label>
-                    <input type="text" id="cadastroCidade" placeholder="Cidade">
+                    <select id="cadastroReligiao">
+                        <option value="">Selecione a religião</option>
+                        <option value="Católica">Católica</option>
+                        <option value="Evangélica">Evangélica</option>
+                        <option value="Espírita">Espírita</option>
+                        <option value="Espiritualista Livre">Espiritualista Livre</option>
+                        <option value="Umbanda">Umbanda</option>
+                        <option value="Candomblé">Candomblé</option>
+                        <option value="Budista">Budista</option>
+                        <option value="Judaica">Judaica</option>
+                        <option value="Islâmica">Islâmica</option>
+                        <option value="Agnóstica">Agnóstica</option>
+                        <option value="Ateia">Ateia</option>
+                        <option value="Outras">Outras</option>
+                        <option value="Não informar">Não informar</option>
+                    </select>
                 </div>
                 <div>
                     <label for="cadastroEstado">Estado</label>
@@ -286,6 +300,12 @@
                     </select>
                 </div>
                 <div>
+                    <label for="cadastroCidade">Cidade</label>
+                    <select id="cadastroCidade">
+                        <option value="">Selecione primeiro o estado</option>
+                    </select>
+                </div>
+                <div>
                     <label for="cadastroTelefone">Telefone</label>
                     <input type="text" id="cadastroTelefone" placeholder="(00) 00000-0000">
                 </div>
@@ -294,8 +314,18 @@
                     <input type="email" id="cadastroEmail" placeholder="email@exemplo.com">
                 </div>
                 <div>
-                    <label for="cadastroIndicacao">Indicação</label>
-                    <input type="text" id="cadastroIndicacao" placeholder="Quem indicou">
+                    <label for="cadastroIndicacao">Como nos conheceu?</label>
+                    <select id="cadastroIndicacao">
+                        <option value="">Selecione uma opção</option>
+                        <option value="Amigos/Parentes">Amigos/Parentes</option>
+                        <option value="Curso Terra do Bugio">Curso Terra do Bugio</option>
+                        <option value="Facebook">Facebook</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="Mercado Mistico">Mercado Místico</option>
+                        <option value="Rádio Atual">Rádio Atual</option>
+                        <option value="TV Astral">TV Astral</option>
+                        <option value="Youtube">Youtube</option>
+                    </select>
                 </div>
                 <div style="grid-column: 1 / -1;">
                     <label for="cadastroObservacao">Observações</label>
@@ -769,8 +799,19 @@
                     document.getElementById('editCpf').value = pessoa.cpf || '';
                     document.getElementById('editNascimento').value = pessoa.nascimento || '';
                     document.getElementById('editReligiao').value = pessoa.religiao || '';
-                    document.getElementById('editCidade').value = pessoa.cidade || '';
                     document.getElementById('editEstado').value = pessoa.estado || '';
+                    
+                    // Carregar cidades do estado e depois selecionar a cidade
+                    if (pessoa.estado) {
+                        carregarCidades('editCidade', pessoa.estado);
+                        // Aguardar um pouco para as cidades carregarem antes de selecionar
+                        setTimeout(() => {
+                            document.getElementById('editCidade').value = pessoa.cidade || '';
+                        }, 100);
+                    } else {
+                        document.getElementById('editCidade').value = pessoa.cidade || '';
+                    }
+                    
                     document.getElementById('editTelefone').value = pessoa.telefone || '';
                     document.getElementById('editEmail').value = pessoa.email || '';
                     console.log('Campos preenchidos com sucesso');
@@ -3542,9 +3583,52 @@
             document.querySelector('button[onclick="showSection(\'relatorios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
+            document.querySelector('button[onclick="abrirBackup()"]').style.display = 'none';
         } else if (user.tipo === 'responsavel') {
             document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
+            document.querySelector('button[onclick="abrirBackup()"]').style.display = 'none';
+        }
+        
+        // Configurar evento para carregar cidades baseado no estado selecionado
+        const estadoSelect = document.getElementById('cadastroEstado');
+        if (estadoSelect) {
+            estadoSelect.addEventListener('change', function(e) {
+                carregarCidades('cadastroCidade', e.target.value);
+            });
+        }
+        
+        // Configurar evento para o campo de edição de estado
+        const editEstadoSelect = document.getElementById('editEstado');
+        if (editEstadoSelect) {
+            editEstadoSelect.addEventListener('change', function(e) {
+                carregarCidades('editCidade', e.target.value);
+            });
+        }
+        
+        // Função para carregar cidades baseado no estado
+        function carregarCidades(selectCidadeId, estado) {
+            const selectCidade = document.getElementById(selectCidadeId);
+            if (!selectCidade) return;
+            
+            // Limpar o select e adicionar a opção padrão
+            selectCidade.innerHTML = '<option value="">Selecione a cidade</option>';
+            
+            // Verificar se temos os dados de municípios carregados
+            if (typeof estadosCidades !== 'undefined' && estado && estadosCidades[estado]) {
+                estadosCidades[estado].forEach(cidade => {
+                    const option = document.createElement('option');
+                    option.value = cidade;
+                    option.textContent = cidade;
+                    selectCidade.appendChild(option);
+                });
+            } else if (estado) {
+                // Se não temos os dados, mostrar mensagem
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Carregando cidades...';
+                selectCidade.appendChild(option);
+            }
         }
     </script>
 </body>

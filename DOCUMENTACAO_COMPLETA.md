@@ -2,6 +2,19 @@
 
 Sistema completo de cadastro e controle de frequência para a organização Terra do Bugio, desenvolvido com Node.js, Express e MySQL.
 
+## 🆕 Versão 1.1.0 - Sistema Otimizado
+
+**Data de Lançamento**: 16 de Outubro de 2024
+
+### ✨ Principais Melhorias:
+- **🧹 Sistema completamente limpo** e otimizado
+- **📊 Base de dados resetada** para estado inicial (0 pessoas, 0 frequências, 1 admin)
+- **📝 Formulários padronizados** com campos estruturados (religião, indicação, cidades)
+- **🔐 Correção da troca de senha obrigatória** para novos usuários
+- **💾 Backup restrito** apenas a administradores
+- **🗂️ Arquivos desnecessários removidos** (~2MB liberados)
+- **⚡ Performance otimizada** após limpeza
+
 ## 📋 Índice
 
 - [Visão Geral](#-visão-geral)

@@ -202,6 +202,63 @@ router.put('/perfil', verificarAuth, async (req, res) => {
     }
 });
 
+// Trocar senha obrigatória (usuário logado) - DEVE VIR ANTES DAS ROTAS COM :id
+router.put('/trocar-senha-obrigatoria', verificarAuth, async (req, res) => {
+    const { senhaAtual, novaSenha } = req.body;
+    const usuarioId = req.user.id;
+    
+    if (!senhaAtual || !novaSenha) {
+        return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' });
+    }
+    
+    if (novaSenha.length < 4) {
+        return res.status(400).json({ error: 'Nova senha deve ter pelo menos 4 caracteres' });
+    }
+    
+    try {
+        // Verificar senha atual
+        const bcrypt = require('bcrypt');
+        const senhaValida = await bcrypt.compare(senhaAtual, req.user.senha);
+        
+        if (!senhaValida) {
+            return res.status(401).json({ error: 'Senha atual incorreta' });
+        }
+        
+        // Hash da nova senha
+        const senhaHash = await hashSenha(novaSenha);
+        
+        // Atualizar senha e remover flag de trocar senha
+        const updated = await db('usuarios')
+            .where('id', usuarioId)
+            .update({
+                senha: senhaHash,
+                deve_trocar_senha: false
+            });
+            
+        if (updated > 0) {
+            // Invalidar todas as outras sessões (manter apenas a atual)
+            try {
+                const tokenAtual = req.headers.authorization?.replace('Bearer ', '');
+                await db('sessoes')
+                    .where('usuario_id', usuarioId)
+                    .where('token', '!=', tokenAtual)
+                    .del();
+                console.log(`Outras sessões do usuário ${usuarioId} invalidadas`);
+            } catch (err) {
+                console.error('Erro ao invalidar outras sessões:', err);
+                // Não interromper o fluxo por esse erro
+            }
+            
+            res.json({ message: 'Senha alterada com sucesso!' });
+        } else {
+            res.status(500).json({ error: 'Falha ao atualizar senha' });
+        }
+    } catch (error) {
+        console.error('Erro ao trocar senha:', error);
+        return res.status(500).json({ error: 'Erro ao processar nova senha' });
+    }
+});
+
 // Atualizar usuário (apenas admins)
 router.put('/:id', verificarAuth, verificarTipo(['administrador']), async (req, res) => {
     try {
@@ -285,64 +342,6 @@ router.put('/:id/reset-senha', verificarAuth, verificarTipo(['administrador']), 
         res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
-
-// Trocar senha obrigatória (usuário logado)
-router.put('/trocar-senha-obrigatoria', verificarAuth, async (req, res) => {
-    const { senhaAtual, novaSenha } = req.body;
-    const usuarioId = req.user.id;
-    
-    if (!senhaAtual || !novaSenha) {
-        return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' });
-    }
-    
-    if (novaSenha.length < 4) {
-        return res.status(400).json({ error: 'Nova senha deve ter pelo menos 4 caracteres' });
-    }
-    
-    try {
-        // Verificar senha atual
-        const bcrypt = require('bcrypt');
-        const senhaValida = await bcrypt.compare(senhaAtual, req.user.senha);
-        
-        if (!senhaValida) {
-            return res.status(401).json({ error: 'Senha atual incorreta' });
-        }
-        
-        // Hash da nova senha
-        const senhaHash = await hashSenha(novaSenha);
-        
-        // Atualizar senha e remover flag de trocar senha
-        const updated = await db('usuarios')
-            .where('id', usuarioId)
-            .update({
-                senha: senhaHash,
-                deve_trocar_senha: false
-            });
-            
-        if (updated > 0) {
-            // Invalidar todas as outras sessões (manter apenas a atual)
-            try {
-                const tokenAtual = req.headers.authorization?.replace('Bearer ', '');
-                await db('sessoes')
-                    .where('usuario_id', usuarioId)
-                    .where('token', '!=', tokenAtual)
-                    .del();
-                console.log(`Outras sessões do usuário ${usuarioId} invalidadas`);
-            } catch (err) {
-                console.error('Erro ao invalidar outras sessões:', err);
-                // Não interromper o fluxo por esse erro
-            }
-            
-            res.json({ message: 'Senha alterada com sucesso!' });
-        } else {
-            res.status(500).json({ error: 'Falha ao atualizar senha' });
-        }
-    } catch (error) {
-        console.error('Erro ao trocar senha:', error);
-        return res.status(500).json({ error: 'Erro ao processar nova senha' });
-    }
-});
-
 
 // Buscar pessoas para vincular a usuário
 router.get('/pessoas-disponiveis', verificarAuth, verificarTipo(['administrador']), async (req, res) => {

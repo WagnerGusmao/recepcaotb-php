@@ -2,6 +2,8 @@
 
 Guia completo para instalação e configuração do Sistema de Recepção Terra do Bugio.
 
+> **📢 Versão 1.1.0**: Sistema otimizado com base de dados limpa e estrutura de arquivos melhorada. Instalação mais rápida e eficiente!
+
 ## 📋 Índice
 
 - [Pré-requisitos](#pré-requisitos)

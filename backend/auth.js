@@ -54,6 +54,8 @@ async function verificarAuth(req, res, next) {
             nome: sessionData.nome,
             email: sessionData.email,
             tipo: sessionData.tipo,
+            senha: sessionData.senha, // Necessário para verificação de senha atual
+            deve_trocar_senha: sessionData.deve_trocar_senha,
             exp: decoded.exp
         };
         
