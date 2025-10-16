@@ -95,19 +95,55 @@ router.get('/', verificarAuth, verificarTipo(['administrador']), async (req, res
         
         console.log('[CACHE] Cache inválido ou expirado, gerando nova análise');
         
+        // Marcar início do processamento
+        const inicioProcessamento = Date.now();
+        
         // Buscar todas as pessoas
-        const pessoas = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM pessoas ORDER BY nome', (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
+        const inicioBusca = Date.now();
+        const pessoas = await db('pessoas').orderBy('nome');
+        const tempoBusca = Date.now() - inicioBusca;
+        
+        console.log(`[ANÁLISE] ${pessoas.length} pessoas encontradas em ${tempoBusca}ms`);
+        
+        // Calcular estimativa de tempo baseada no número de pessoas
+        const totalComparacoes = (pessoas.length * (pessoas.length - 1)) / 2;
+        const estimativaMs = Math.ceil(totalComparacoes * 0.1); // ~0.1ms por comparação
+        const estimativaSegundos = Math.ceil(estimativaMs / 1000);
+        const estimativaMinutos = Math.ceil(estimativaSegundos / 60);
+        
+        let estimativaTexto;
+        if (estimativaSegundos < 60) {
+            estimativaTexto = `${estimativaSegundos} segundos`;
+        } else if (estimativaMinutos < 10) {
+            estimativaTexto = `${estimativaMinutos} minutos`;
+        } else {
+            estimativaTexto = `${estimativaMinutos} minutos (processo longo)`;
+        }
+        
+        console.log(`[ANÁLISE] Estimativa de processamento: ${estimativaTexto} (${totalComparacoes.toLocaleString()} comparações)`);
         
         const duplicatas = [];
         const processados = new Set();
+        let comparacoesRealizadas = 0;
+        let gruposEncontrados = 0;
+        
+        // Progresso a cada 10% do processamento
+        const intervalosProgresso = Math.ceil(pessoas.length / 10);
+        let proximoProgresso = intervalosProgresso;
         
         for (let i = 0; i < pessoas.length; i++) {
             if (processados.has(pessoas[i].id)) continue;
+            
+            // Log de progresso
+            if (i >= proximoProgresso) {
+                const progresso = Math.round((i / pessoas.length) * 100);
+                const tempoDecorrido = Date.now() - inicioProcessamento;
+                const tempoRestanteEstimado = (tempoDecorrido / (i / pessoas.length)) - tempoDecorrido;
+                const minutosRestantes = Math.ceil(tempoRestanteEstimado / 60000);
+                
+                console.log(`[ANÁLISE] Progresso: ${progresso}% (${gruposEncontrados} grupos encontrados) - Tempo restante estimado: ${minutosRestantes}min`);
+                proximoProgresso += intervalosProgresso;
+            }
             
             const grupo = [pessoas[i]];
             processados.add(pessoas[i].id);
@@ -115,6 +151,7 @@ router.get('/', verificarAuth, verificarTipo(['administrador']), async (req, res
             for (let j = i + 1; j < pessoas.length; j++) {
                 if (processados.has(pessoas[j].id)) continue;
                 
+                comparacoesRealizadas++;
                 const similaridade = calcularSimilaridade(
                     normalizarNome(pessoas[i].nome),
                     normalizarNome(pessoas[j].nome)
@@ -127,20 +164,32 @@ router.get('/', verificarAuth, verificarTipo(['administrador']), async (req, res
             }
             
             if (grupo.length > 1) {
+                gruposEncontrados++;
+                
                 // Buscar frequências para cada pessoa do grupo
+                const inicioFrequencias = Date.now();
                 const grupoComFrequencias = await Promise.all(
-                    grupo.map(pessoa => {
-                        return new Promise((resolve) => {
-                            db.all('SELECT COUNT(*) as total FROM frequencias WHERE pessoa_id = ?', 
-                                   [pessoa.id], (err, result) => {
-                                resolve({
-                                    ...pessoa,
-                                    total_frequencias: err ? 0 : (result && result[0] ? result[0].total : 0)
-                                });
-                            });
-                        });
+                    grupo.map(async (pessoa) => {
+                        try {
+                            const result = await db('frequencias')
+                                .where('pessoa_id', pessoa.id)
+                                .count('* as total')
+                                .first();
+                            
+                            return {
+                                ...pessoa,
+                                total_frequencias: result?.total || 0
+                            };
+                        } catch (error) {
+                            console.error('Erro ao buscar frequências:', error);
+                            return {
+                                ...pessoa,
+                                total_frequencias: 0
+                            };
+                        }
                     })
                 );
+                const tempoFrequencias = Date.now() - inicioFrequencias;
                 
                 // Calcular similaridade média
                 const similaridade_media = grupo.length > 1 ? 
@@ -155,25 +204,49 @@ router.get('/', verificarAuth, verificarTipo(['administrador']), async (req, res
                 duplicatas.push({
                     id: `grupo_${i}`,
                     pessoas: grupoComFrequencias,
-                    similaridade_media: similaridade_media
+                    similaridade_media: similaridade_media,
+                    tempo_busca_frequencias_ms: tempoFrequencias
                 });
             }
         }
         
+        const tempoTotalProcessamento = Date.now() - inicioProcessamento;
+        const tempoTotalSegundos = Math.round(tempoTotalProcessamento / 1000);
+        const tempoTotalMinutos = Math.round(tempoTotalSegundos / 60);
+        
+        console.log(`[ANÁLISE] Processamento concluído em ${tempoTotalSegundos}s (${comparacoesRealizadas.toLocaleString()} comparações realizadas)`);
+        
+        // Calcular estatísticas de performance
+        const mediaComparacoesPorSegundo = Math.round(comparacoesRealizadas / (tempoTotalProcessamento / 1000));
+        const eficienciaProcessamento = Math.round((comparacoesRealizadas / totalComparacoes) * 100);
+        
         const resultado = {
             total_grupos: duplicatas.length,
             total_pessoas_duplicadas: duplicatas.reduce((acc, grupo) => acc + grupo.pessoas.length, 0),
+            total_pessoas_analisadas: pessoas.length,
             threshold_usado: parseFloat(threshold),
             grupos: duplicatas.sort((a, b) => b.similaridade_media - a.similaridade_media),
             cache_usado: false,
-            gerado_em: new Date().toLocaleString('pt-BR')
+            gerado_em: new Date().toLocaleString('pt-BR'),
+            estatisticas_processamento: {
+                tempo_total_ms: tempoTotalProcessamento,
+                tempo_total_segundos: tempoTotalSegundos,
+                tempo_total_minutos: tempoTotalMinutos,
+                tempo_busca_pessoas_ms: tempoBusca,
+                comparacoes_realizadas: comparacoesRealizadas,
+                comparacoes_totais_possiveis: totalComparacoes,
+                media_comparacoes_por_segundo: mediaComparacoesPorSegundo,
+                eficiencia_processamento_pct: eficienciaProcessamento,
+                estimativa_inicial: estimativaTexto,
+                precisao_estimativa: tempoTotalSegundos <= estimativaSegundos * 1.2 ? 'boa' : 'imprecisa'
+            }
         };
         
         // Armazenar no cache
         cacheAnalise.dados = resultado;
         cacheAnalise.timestamp = Date.now();
         cacheAnalise.threshold = parseFloat(threshold);
-        console.log(`[CACHE] Resultado armazenado no cache (${duplicatas.length} grupos)`);
+        console.log(`[CACHE] Resultado armazenado no cache (${duplicatas.length} grupos em ${tempoTotalSegundos}s)`);
         
         res.json(resultado);
         
@@ -227,49 +300,31 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
     try {
         console.log(`[MESCLAGEM] Iniciando mesclagem: Principal=${pessoa_principal_id}, Secundárias=[${pessoas_secundarias_ids.join(',')}]`);
         
-        // Função auxiliar para executar queries com Promise e timeout
-        const runQuery = (sql, params = [], timeout = 10000) => {
-            return new Promise((resolve, reject) => {
-                const timer = setTimeout(() => {
-                    reject(new Error('Query timeout: operação demorou mais que ' + timeout + 'ms'));
-                }, timeout);
-                
-                db.run(sql, params, function(err) {
-                    clearTimeout(timer);
-                    if (err) {
-                        console.error('[MESCLAGEM] Erro na query:', err.message, 'SQL:', sql);
-                        reject(err);
-                    } else {
-                        resolve(this);
-                    }
-                });
-            });
+        // Função auxiliar para executar queries com Promise e timeout usando Knex
+        const runQuery = async (queryBuilder, timeout = 10000) => {
+            return Promise.race([
+                queryBuilder,
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Query timeout: operação demorou mais que ' + timeout + 'ms')), timeout)
+                )
+            ]);
         };
         
-        // Função para executar SELECT com timeout
-        const selectQuery = (sql, params = [], timeout = 5000) => {
-            return new Promise((resolve, reject) => {
-                const timer = setTimeout(() => {
-                    reject(new Error('Select timeout: consulta demorou mais que ' + timeout + 'ms'));
-                }, timeout);
-                
-                db.all(sql, params, (err, rows) => {
-                    clearTimeout(timer);
-                    if (err) {
-                        console.error('[MESCLAGEM] Erro na consulta:', err.message, 'SQL:', sql);
-                        reject(err);
-                    } else {
-                        resolve(rows);
-                    }
-                });
-            });
+        // Função para executar SELECT com timeout usando Knex
+        const selectQuery = async (queryBuilder, timeout = 5000) => {
+            return Promise.race([
+                queryBuilder,
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Select timeout: consulta demorou mais que ' + timeout + 'ms')), timeout)
+                )
+            ]);
         };
         
         // Verificar se todas as pessoas existem antes de iniciar
-        const placeholders = [pessoa_principal_id, ...pessoas_secundarias_ids].map(() => '?').join(',');
         const pessoasExistentes = await selectQuery(
-            `SELECT id FROM pessoas WHERE id IN (${placeholders})`,
-            [pessoa_principal_id, ...pessoas_secundarias_ids]
+            db('pessoas')
+                .select('id')
+                .whereIn('id', [pessoa_principal_id, ...pessoas_secundarias_ids])
         );
         
         if (pessoasExistentes.length !== pessoas_secundarias_ids.length + 1) {
@@ -278,15 +333,17 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
         
         // Contar frequências antes da mesclagem para relatório
         const frequenciasAntes = await selectQuery(
-            `SELECT pessoa_id, COUNT(*) as total FROM frequencias 
-             WHERE pessoa_id IN (${placeholders}) GROUP BY pessoa_id`,
-            [pessoa_principal_id, ...pessoas_secundarias_ids]
+            db('frequencias')
+                .select('pessoa_id')
+                .count('* as total')
+                .whereIn('pessoa_id', [pessoa_principal_id, ...pessoas_secundarias_ids])
+                .groupBy('pessoa_id')
         );
         
-        const totalFrequencias = frequenciasAntes.reduce((acc, f) => acc + f.total, 0);
+        const totalFrequencias = frequenciasAntes.reduce((acc, f) => acc + parseInt(f.total), 0);
         
-        // Iniciar transação com timeout maior
-        await runQuery('BEGIN IMMEDIATE TRANSACTION', [], 15000);
+        // Iniciar transação com Knex
+        const trx = await db.transaction();
         
         try {
             console.log('[MESCLAGEM] Transação iniciada');
@@ -296,12 +353,15 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
                 const { nome, cpf, nascimento, religiao, cidade, estado, telefone, email, indicacao, observacao } = dados_mesclados;
                 
                 console.log('[MESCLAGEM] Atualizando dados da pessoa principal');
-                await runQuery(`UPDATE pessoas SET 
-                        nome=?, cpf=?, nascimento=?, religiao=?, cidade=?, estado=?, 
-                        telefone=?, email=?, indicacao=?, observacao=?, updated_at=datetime('now')
-                        WHERE id=?`,
-                       [nome, cpf, nascimento, religiao, cidade, estado, telefone, email, indicacao, observacao, pessoa_principal_id],
-                       8000);
+                await runQuery(
+                    trx('pessoas')
+                        .where('id', pessoa_principal_id)
+                        .update({
+                            nome, cpf, nascimento, religiao, cidade, estado, 
+                            telefone, email, indicacao, observacao
+                        }),
+                    8000
+                );
             }
             
             // 2. Transferir frequências em lotes para melhor performance
@@ -310,13 +370,14 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
             
             for (let i = 0; i < pessoas_secundarias_ids.length; i += loteSize) {
                 const lote = pessoas_secundarias_ids.slice(i, i + loteSize);
-                const loteplaceholders = lote.map(() => '?').join(',');
                 
                 // Transferir frequências do lote atual
                 await runQuery(
-                    `UPDATE frequencias SET pessoa_id=?, updated_at=datetime('now') 
-                     WHERE pessoa_id IN (${loteplaceholders})`,
-                    [pessoa_principal_id, ...lote],
+                    trx('frequencias')
+                        .whereIn('pessoa_id', lote)
+                        .update({
+                            pessoa_id: pessoa_principal_id
+                        }),
                     10000
                 );
                 
@@ -327,14 +388,16 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
             console.log('[MESCLAGEM] Removendo pessoas secundárias');
             for (let i = 0; i < pessoas_secundarias_ids.length; i += loteSize) {
                 const lote = pessoas_secundarias_ids.slice(i, i + loteSize);
-                const loteplaceholders = lote.map(() => '?').join(',');
                 
-                await runQuery(`DELETE FROM pessoas WHERE id IN (${loteplaceholders})`, lote, 8000);
+                await runQuery(
+                    trx('pessoas').whereIn('id', lote).del(),
+                    8000
+                );
             }
             
             // 4. Confirmar transação
             console.log('[MESCLAGEM] Confirmando transação');
-            await runQuery('COMMIT', [], 10000);
+            await trx.commit();
             
             console.log('[MESCLAGEM] Mesclagem concluída com sucesso');
             
@@ -355,7 +418,7 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
             
         } catch (error) {
             console.log('[MESCLAGEM] Erro durante transação, fazendo rollback');
-            await runQuery('ROLLBACK', [], 5000);
+            await trx.rollback();
             throw error;
         }
         
@@ -379,7 +442,7 @@ router.post('/mesclar', verificarAuth, verificarTipo(['administrador']), async (
 });
 
 // Visualizar detalhes de um grupo de duplicatas
-router.get('/grupo/:grupoId', verificarAuth, verificarTipo(['administrador']), (req, res) => {
+router.get('/grupo/:grupoId', verificarAuth, verificarTipo(['administrador']), async (req, res) => {
     const { pessoaIds } = req.query; // IDs separados por vírgula
     
     if (!pessoaIds) {
@@ -389,35 +452,45 @@ router.get('/grupo/:grupoId', verificarAuth, verificarTipo(['administrador']), (
     const ids = pessoaIds.split(',').map(id => parseInt(id));
     const placeholders = ids.map(() => '?').join(',');
     
-    // Buscar dados das pessoas
-    db.all(`SELECT * FROM pessoas WHERE id IN (${placeholders})`, ids, (err, pessoas) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+    // Buscar dados das pessoas usando Knex
+    try {
+        const pessoas = await db('pessoas').whereIn('id', ids);
         
         // Buscar frequências de cada pessoa
-        const pessoasComDetalhes = pessoas.map(pessoa => {
-            return new Promise((resolve) => {
-                db.all(`SELECT f.*, f.data, f.tipo, f.numero_senha, f.created_at 
-                        FROM frequencias f 
-                        WHERE f.pessoa_id = ? 
-                        ORDER BY f.data DESC`, [pessoa.id], (err, frequencias) => {
-                    resolve({
+        const pessoasComDetalhes = await Promise.all(
+            pessoas.map(async (pessoa) => {
+                try {
+                    const frequencias = await db('frequencias')
+                        .where('pessoa_id', pessoa.id)
+                        .orderBy('data', 'desc');
+                    
+                    return {
                         ...pessoa,
-                        frequencias: err ? [] : frequencias,
-                        total_frequencias: err ? 0 : frequencias.length
-                    });
-                });
-            });
+                        frequencias: frequencias || [],
+                        total_frequencias: frequencias ? frequencias.length : 0
+                    };
+                } catch (error) {
+                    console.error('Erro ao buscar frequências:', error);
+                    return {
+                        ...pessoa,
+                        frequencias: [],
+                        total_frequencias: 0
+                    };
+                }
+            })
+        );
+        
+        res.json({
+            grupo_id: req.params.grupoId,
+            pessoas: pessoasComDetalhes,
+            total_pessoas: pessoasComDetalhes.length,
+            sugestao_mesclagem: gerarSugestaoMesclagem(pessoasComDetalhes)
         });
         
-        Promise.all(pessoasComDetalhes).then(resultado => {
-            res.json({
-                pessoas: resultado,
-                sugestao_mesclagem: gerarSugestaoMesclagem(resultado)
-            });
-        });
-    });
+    } catch (error) {
+        console.error('Erro ao visualizar grupo:', error);
+        res.status(500).json({ error: 'Erro ao buscar detalhes: ' + error.message });
+    }
 });
 
 // Função para gerar sugestão de mesclagem
@@ -544,63 +617,62 @@ async function processarMesclagemIndividual(mesclagem) {
         throw new Error('Muitas pessoas para mesclar de uma vez (máximo 7)');
     }
     
-    // Função auxiliar para executar queries com Promise e timeout
-    const runQuery = (sql, params = [], timeout = 8000) => {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => {
-                reject(new Error('Query timeout'));
-            }, timeout);
-            
-            db.run(sql, params, function(err) {
-                clearTimeout(timer);
-                if (err) {
-                    console.error('[MESCLAGEM-INDIVIDUAL] Erro na query:', err.message, 'SQL:', sql);
-                    reject(err);
-                } else {
-                    resolve(this);
-                }
-            });
-        });
+    // Função auxiliar para executar queries com Promise e timeout usando Knex
+    const runQuery = async (queryBuilder, timeout = 8000) => {
+        return Promise.race([
+            queryBuilder,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Query timeout')), timeout)
+            )
+        ]);
     };
     
-    // Iniciar transação
-    await runQuery('BEGIN IMMEDIATE TRANSACTION', [], 10000);
+    // Iniciar transação com Knex
+    const trx = await db.transaction();
     
     try {
         // 1. Atualizar dados da pessoa principal
         if (dados_mesclados) {
             const { nome, cpf, nascimento, religiao, cidade, estado, telefone, email, indicacao, observacao } = dados_mesclados;
             
-            await runQuery(`UPDATE pessoas SET 
-                    nome=?, cpf=?, nascimento=?, religiao=?, cidade=?, estado=?, 
-                    telefone=?, email=?, indicacao=?, observacao=?, updated_at=datetime('now')
-                    WHERE id=?`,
-                   [nome, cpf, nascimento, religiao, cidade, estado, telefone, email, indicacao, observacao, pessoa_principal_id]);
+            await runQuery(
+                trx('pessoas')
+                    .where('id', pessoa_principal_id)
+                    .update({
+                        nome, cpf, nascimento, religiao, cidade, estado, 
+                        telefone, email, indicacao, observacao
+                    }),
+                10000
+            );
         }
         
         // 2. Transferir frequências em lotes pequenos
         const loteSize = 2;
         for (let i = 0; i < pessoas_secundarias_ids.length; i += loteSize) {
             const lote = pessoas_secundarias_ids.slice(i, i + loteSize);
-            const placeholders = lote.map(() => '?').join(',');
             
             await runQuery(
-                `UPDATE frequencias SET pessoa_id=?, updated_at=datetime('now') 
-                 WHERE pessoa_id IN (${placeholders})`,
-                [pessoa_principal_id, ...lote]
+                trx('frequencias')
+                    .whereIn('pessoa_id', lote)
+                    .update({
+                        pessoa_id: pessoa_principal_id
+                    }),
+                8000
             );
         }
         
         // 3. Remover pessoas secundárias
         for (let i = 0; i < pessoas_secundarias_ids.length; i += loteSize) {
             const lote = pessoas_secundarias_ids.slice(i, i + loteSize);
-            const placeholders = lote.map(() => '?').join(',');
             
-            await runQuery(`DELETE FROM pessoas WHERE id IN (${placeholders})`, lote);
+            await runQuery(
+                trx('pessoas').whereIn('id', lote).del(),
+                8000
+            );
         }
         
         // 4. Confirmar transação
-        await runQuery('COMMIT');
+        await trx.commit();
         
         return {
             pessoa_principal_id,
@@ -609,7 +681,7 @@ async function processarMesclagemIndividual(mesclagem) {
         };
         
     } catch (error) {
-        await runQuery('ROLLBACK');
+        await trx.rollback();
         throw error;
     }
 }
@@ -617,17 +689,17 @@ async function processarMesclagemIndividual(mesclagem) {
 // Rota para obter estatísticas de performance
 router.get('/stats', verificarAuth, verificarTipo(['administrador']), async (req, res) => {
     try {
-        const stats = await new Promise((resolve, reject) => {
-            db.all(`
-                SELECT 
-                    COUNT(*) as total_pessoas,
-                    (SELECT COUNT(*) FROM frequencias) as total_frequencias,
-                    (SELECT COUNT(DISTINCT pessoa_id) FROM frequencias) as pessoas_com_frequencia
-            `, (err, result) => {
-                if (err) reject(err);
-                else resolve(result[0]);
-            });
-        });
+        const [totalPessoas, totalFrequencias, pessoasComFrequencia] = await Promise.all([
+            db('pessoas').count('* as total').first(),
+            db('frequencias').count('* as total').first(),
+            db('frequencias').countDistinct('pessoa_id as total').first()
+        ]);
+        
+        const stats = {
+            total_pessoas: totalPessoas.total,
+            total_frequencias: totalFrequencias.total,
+            pessoas_com_frequencia: pessoasComFrequencia.total
+        };
         
         // Informações do cache
         const cacheInfo = {

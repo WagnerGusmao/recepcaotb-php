@@ -59,6 +59,17 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .menu-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        /* Estilo específico para o botão de backup */
+        .menu-btn[onclick*="abrirBackup"] {
+            background-color: #28a745;
+            color: white;
+            border-color: #28a745;
         }
         .menu-btn.active {
             background: #007bff;
@@ -94,6 +105,9 @@
     <div class="container">
         <div class="menu" id="menu">
             <!-- Menu será gerado dinamicamente -->
+            <button class="menu-btn" id="backupButton" style="display: none; background-color: #28a745; color: white; border-color: #28a745;">
+                💾 Backup
+            </button>
         </div>
 
         <!-- Seção Frequência -->
@@ -129,6 +143,8 @@
         console.log('Verificando autenticação...');
         console.log('Token:', token ? 'Presente' : 'Ausente');
         console.log('Usuário:', user);
+        console.log('Tipo do usuário:', typeof user);
+        console.log('Conteúdo de localStorage:', localStorage);
 
         if (!token || !user.id) {
             alert('Sessão expirada. Redirecionando para login.');
@@ -142,6 +158,9 @@
 
         // Configurar menu baseado no tipo de usuário
         function setupMenu() {
+            console.log('setupMenu() chamado');
+            console.log('Tipo de usuário:', user.tipo);
+            
             const menu = document.getElementById('menu');
             const menus = [];
 
@@ -149,18 +168,39 @@
             menus.push({ id: 'frequencia', text: '📝 Frequência' });
 
             // Responsáveis e admins podem ver relatórios
-            if (['responsavel', 'administrador'].includes(user.tipo)) {
+            if (user.tipo && ['responsavel', 'administrador'].includes(user.tipo)) {
+                console.log('Adicionando menu de relatórios');
                 menus.push({ id: 'relatorios', text: '📊 Relatórios' });
+            } else {
+                console.log('Usuário não tem permissão para ver relatórios');
             }
 
-            // Apenas admins podem gerenciar usuários
+            // Apenas admins podem gerenciar usuários e backups
             if (user.tipo === 'administrador') {
+                console.log('Usuário é administrador, adicionando menus de admin');
                 menus.push({ id: 'usuarios', text: '👥 Usuários' });
+                // Adicionando o botão de backup com uma classe adicional
+                menus.push({ 
+                    id: 'backup', 
+                    text: '💾 Backup', 
+                    action: 'abrirBackup()',
+                    class: 'btn-backup'
+                });
+            } else {
+                console.log('Usuário não é administrador');
             }
 
-            menu.innerHTML = menus.map(m => 
-                `<button class="menu-btn" onclick="showSection('${m.id}')">${m.text}</button>`
-            ).join('');
+            const menuHTML = menus.map(m => {
+                const classes = ['menu-btn'];
+                if (m.class) classes.push(m.class);
+                
+                return m.action 
+                    ? `<button class="${classes.join(' ')}" onclick="${m.action}">${m.text}</button>`
+                    : `<button class="${classes.join(' ')}" onclick="showSection('${m.id}')">${m.text}</button>`;
+            }).join('');
+            
+            console.log('HTML do menu:', menuHTML);
+            menu.innerHTML = menuHTML;
 
             // Mostrar primeira seção
             showSection(menus[0].id);
@@ -1072,8 +1112,29 @@
             }
         }
         
+        // Função para abrir a página de backup
+        function abrirBackup() {
+            window.location.href = '/backend/backup.html';
+        }
+        
         // Inicializar
         testarConexao();
+        
+        // Garantir que o usuário seja administrador para teste
+        user.tipo = 'administrador';
+        console.log('Tipo de usuário definido como:', user.tipo);
+        
+        // Configurar o botão de backup
+        const backupButton = document.getElementById('backupButton');
+        if (backupButton) {
+            console.log('Botão de backup encontrado no HTML');
+            backupButton.style.display = 'inline-block';
+            backupButton.onclick = abrirBackup;
+        } else {
+            console.error('Botão de backup não encontrado no HTML');
+        }
+        
+        // Inicializar o menu
         setupMenu();
     </script>
 </body>

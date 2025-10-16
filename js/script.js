@@ -900,20 +900,37 @@ class SistemaFrequencia {
         resultado.innerHTML = `
             <h3>Relatório de Frequência (${frequencias.length} registros)</h3>
             ${resumo}
-            ${frequencias.map(freq => {
-                const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
-                const dataRegistro = freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A';
-                
-                return `
-                    <div class="relatorio-item tipo-${freq.tipo}">
-                        <strong>${freq.nome || 'Nome não encontrado'}</strong><br>
-                        Tipo: ${tipoLabels[freq.tipo] || freq.tipo}<br>
-                        Senha: ${freq.numero_senha || 'N/A'}<br>
-                        Data: ${dataFormatada}<br>
-                        Registrado em: ${dataRegistro}
-                    </div>
-                `;
-            }).join('')}
+            <div style="margin-top: 20px;">
+                <h4>📋 Lista Detalhada de Frequências:</h4>
+                ${frequencias.map((freq, index) => {
+                    const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
+                    const dataRegistro = freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A';
+                    const numeroOrdem = index + 1;
+                    
+                    return `
+                        <div class="relatorio-item tipo-${freq.tipo}" style="border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span style="background: #007bff; color: white; padding: 5px 10px; border-radius: 15px; font-weight: bold;">
+                                    ${numeroOrdem}
+                                </span>
+                                <span style="color: #666; font-size: 0.9em;">ID: ${freq.id || 'N/A'}</span>
+                            </div>
+                            <div style="grid-template-columns: 1fr 1fr; display: grid; gap: 10px;">
+                                <div>
+                                    <strong>👤 Nome:</strong> ${freq.pessoa_nome || 'Nome não encontrado'}<br>
+                                    <strong>🏷️ Tipo:</strong> ${tipoLabels[freq.tipo] || freq.tipo}<br>
+                                    <strong>🎫 Senha:</strong> ${freq.numero_senha || freq.numero_senha === 0 ? freq.numero_senha : 'N/A'}
+                                </div>
+                                <div>
+                                    <strong>📅 Data:</strong> ${dataFormatada}<br>
+                                    <strong>⏰ Registrado:</strong> ${dataRegistro}<br>
+                                    <strong>🆔 Pessoa ID:</strong> ${freq.pessoa_id || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
         `;
     }
 
@@ -1237,13 +1254,14 @@ class SistemaFrequencia {
             pet_animal: 'Pet - Animal'
         };
         
-        let csv = 'Nome,Tipo,Senha,Data,Registrado em\n';
+        let csv = 'Ordem,Nome,Tipo,Senha,Data,Registrado em,ID Pessoa,ID Frequencia\n';
         
-        this.dadosRelatorio.forEach(freq => {
+        this.dadosRelatorio.forEach((freq, index) => {
             const dataFormatada = freq.data ? freq.data.split('-').reverse().join('/') : 'N/A';
             const dataRegistro = freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A';
+            const numeroOrdem = index + 1;
             
-            csv += `"${freq.nome}","${tipoLabels[freq.tipo]}","${freq.numero_senha}","${dataFormatada}","${dataRegistro}"\n`;
+            csv += `"${numeroOrdem}","${freq.pessoa_nome}","${tipoLabels[freq.tipo]}","${freq.numero_senha || freq.numero_senha === 0 ? freq.numero_senha : 'N/A'}","${dataFormatada}","${dataRegistro}","${freq.pessoa_id || 'N/A'}","${freq.id || 'N/A'}"\n`;
         });
         
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -1267,12 +1285,15 @@ class SistemaFrequencia {
             pet_animal: 'Pet - Animal'
         };
         
-        const dados = this.dadosRelatorio.map(freq => ({
-            'Nome': freq.nome,
+        const dados = this.dadosRelatorio.map((freq, index) => ({
+            'Ordem': index + 1,
+            'Nome': freq.pessoa_nome,
             'Tipo': tipoLabels[freq.tipo],
-            'Senha': freq.numero_senha,
+            'Senha': freq.numero_senha || freq.numero_senha === 0 ? freq.numero_senha : 'N/A',
             'Data': freq.data ? freq.data.split('-').reverse().join('/') : 'N/A',
-            'Registrado em': freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A'
+            'Registrado em': freq.created_at ? new Date(freq.created_at).toLocaleString('pt-BR') : 'N/A',
+            'ID Pessoa': freq.pessoa_id || 'N/A',
+            'ID Frequencia': freq.id || 'N/A'
         }));
         
         const ws = XLSX.utils.json_to_sheet(dados);
