@@ -1,6 +1,8 @@
 node_modules/
+php/vendor/
 *.log
 .env
 .DS_Store
 backend/frequencia.db
 *.tmp
+php/logs/
