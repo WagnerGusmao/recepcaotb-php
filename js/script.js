@@ -295,10 +295,8 @@ const progressTimer = new ProgressTimer();
 
 class SistemaFrequencia {
     constructor() {
-        // Usar API relativa para funcionar em produção
-        this.apiUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api' 
-            : '/api';
+        // Usar API PHP
+        this.apiUrl = 'php/api';
         this.pessoas = [];
         this.pessoasEncontradas = [];
         this.frequencias = [];
@@ -429,7 +427,8 @@ class SistemaFrequencia {
             estado: document.getElementById('estado').value.trim() || null,
             telefone: document.getElementById('telefone').value.trim() || null,
             email: document.getElementById('email').value.trim() || null,
-            indicacao: document.getElementById('indicacao').value || null
+            indicacao: document.getElementById('indicacao').value || null,
+            observacao: document.getElementById('observacao').value.trim() || null
         };
 
         // Criar temporizador de progresso para cadastro
@@ -452,7 +451,7 @@ class SistemaFrequencia {
             progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
             progressTimer.nextStep(timerId);
 
-            const response = await fetch(`${this.apiUrl}/pessoas`, {
+            const response = await fetch(`${this.apiUrl}/pessoas.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(pessoa)
@@ -562,7 +561,7 @@ class SistemaFrequencia {
         resultado.appendChild(loadingEl);
         
         try {
-            const response = await fetch(`${this.apiUrl}/pessoas?busca=${encodeURIComponent(termo)}`);
+            const response = await fetch(`${this.apiUrl}/pessoas.php?busca=${encodeURIComponent(termo)}`);
             this.pessoasEncontradas = await response.json();
             
             // Remover indicador de carregamento
@@ -726,9 +725,8 @@ class SistemaFrequencia {
                 console.log('Botão gerar relatório clicado');
                 this.gerarRelatorio();
             });
-        } else {
-            console.error('Botão gerar relatório não encontrado!');
         }
+        // Não mostrar erro se não encontrar - é normal em páginas diferentes
 
         const btnCidades = document.getElementById('relatorioCidades');
         if (btnCidades) {
@@ -744,25 +742,40 @@ class SistemaFrequencia {
             });
         }
 
-        document.getElementById('exportarCidadesPDF').addEventListener('click', () => {
-            this.exportarCidadesPDF();
-        });
+        const btnExportarCidadesPDF = document.getElementById('exportarCidadesPDF');
+        if (btnExportarCidadesPDF) {
+            btnExportarCidadesPDF.addEventListener('click', () => {
+                this.exportarCidadesPDF();
+            });
+        }
 
-        document.getElementById('exportarMensalPDF').addEventListener('click', () => {
-            this.exportarMensalPDF();
-        });
+        const btnExportarMensalPDF = document.getElementById('exportarMensalPDF');
+        if (btnExportarMensalPDF) {
+            btnExportarMensalPDF.addEventListener('click', () => {
+                this.exportarMensalPDF();
+            });
+        }
 
-        document.getElementById('exportarCSV').addEventListener('click', () => {
-            this.exportarCSV();
-        });
+        const btnExportarCSV = document.getElementById('exportarCSV');
+        if (btnExportarCSV) {
+            btnExportarCSV.addEventListener('click', () => {
+                this.exportarCSV();
+            });
+        }
 
-        document.getElementById('exportarXLS').addEventListener('click', () => {
-            this.exportarXLS();
-        });
+        const btnExportarXLS = document.getElementById('exportarXLS');
+        if (btnExportarXLS) {
+            btnExportarXLS.addEventListener('click', () => {
+                this.exportarXLS();
+            });
+        }
 
-        document.getElementById('exportarPDF').addEventListener('click', () => {
-            this.exportarPDF();
-        });
+        const btnExportarPDF = document.getElementById('exportarPDF');
+        if (btnExportarPDF) {
+            btnExportarPDF.addEventListener('click', () => {
+                this.exportarPDF();
+            });
+        }
     }
 
     async gerarRelatorio() {
@@ -1077,7 +1090,7 @@ class SistemaFrequencia {
     async carregarPessoas() {
         try {
             console.log('Carregando pessoas...');
-            const response = await fetch(`${this.apiUrl}/pessoas`);
+            const response = await fetch(`${this.apiUrl}/pessoas.php`);
             this.pessoas = await response.json();
             console.log('Pessoas carregadas:', this.pessoas.length);
         } catch (error) {
@@ -1753,7 +1766,7 @@ class SistemaFrequencia {
             progressTimer.update(timerId, { message: 'Enviando dados atualizados...' });
             progressTimer.nextStep(timerId);
 
-            const response = await fetch(`${this.apiUrl}/pessoas/${this.pessoaSelecionada.id}`, {
+            const response = await fetch(`${this.apiUrl}/pessoas.php/${this.pessoaSelecionada.id}`, {
                 method: 'PUT',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify(dadosAtualizados)

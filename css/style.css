@@ -5,85 +5,134 @@
 }
 
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f5f5f5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: white;
+    min-height: 100vh;
     color: #333;
 }
 
 header {
-    background-color: #2c3e50;
+    background: rgba(44, 62, 80, 0.95);
+    backdrop-filter: blur(10px);
     color: white;
-    padding: 1rem;
+    padding: 1.5rem;
     text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 
 .header-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
 }
 
 .logo {
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid white;
+    border: 3px solid white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
 }
 
 header h1 {
     margin: 0;
+    font-size: 2.2rem;
+    font-weight: 300;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 }
 
 nav {
     display: flex;
     justify-content: center;
-    gap: 1rem;
+    gap: 1.5rem;
+    flex-wrap: wrap;
 }
 
 .nav-btn {
-    padding: 0.5rem 1rem;
+    padding: 0.8rem 2rem;
     border: none;
-    background-color: #34495e;
+    background: linear-gradient(45deg, #3498db, #2980b9);
     color: white;
     cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.3s;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
 }
 
 .nav-btn:hover {
-    background-color: #3498db;
+    background: linear-gradient(45deg, #2980b9, #3498db);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
 }
 
 .nav-btn.active {
-    background-color: #3498db;
+    background: linear-gradient(45deg, #e74c3c, #c0392b);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
 }
 
 main {
-    max-width: 800px;
+    max-width: 900px;
     margin: 2rem auto;
     padding: 0 1rem;
 }
 
 .secao {
     display: none;
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .secao.active {
     display: block;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .secao h2 {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
     color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 0.5rem;
+    font-size: 2rem;
+    font-weight: 300;
+    text-align: center;
+    position: relative;
+    padding-bottom: 1rem;
+}
+
+.secao h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(45deg, #3498db, #2980b9);
+    border-radius: 2px;
 }
 
 .form-group {
@@ -91,22 +140,132 @@ main {
 }
 
 .form-group h3 {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     color: #34495e;
+    font-size: 1.3rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.form-group input, .form-group select {
+.form-group h3::before {
+    content: '📝';
+    font-size: 1.2rem;
+}
+
+.form-row {
+    display: grid;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-row.two-columns {
+    grid-template-columns: 1fr 1fr;
+}
+
+.form-row.three-columns {
+    grid-template-columns: 2fr 1fr 1fr;
+}
+
+.form-row.three-columns-equal {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.form-row.two-columns-equal {
+    grid-template-columns: 1fr 1fr;
+}
+
+.form-row.contact-layout {
+    grid-template-columns: 1.2fr 0.8fr;
+}
+
+.form-row.location-layout {
+    grid-template-columns: 1fr 1fr;
+}
+
+.form-row.single-column {
+    grid-template-columns: 1fr;
+}
+
+.form-group input, .form-group select, .form-group textarea {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem 1.2rem;
     margin-bottom: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 2px solid #e1e8ed;
+    border-radius: 12px;
     font-size: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+    font-family: inherit;
+    min-height: 48px;
 }
 
-.form-group input:focus, .form-group select:focus {
+/* Campos específicos com tamanhos otimizados */
+#nome {
+    font-weight: 500;
+    font-size: 1.1rem;
+    border-color: #3498db;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(255, 255, 255, 0.95));
+}
+
+#cpf {
+    max-width: 200px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+#nascimento {
+    max-width: 180px;
+    font-family: 'Courier New', monospace;
+}
+
+#telefone {
+    max-width: 200px;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+}
+
+#email {
+    min-width: 250px;
+    font-style: italic;
+}
+
+#observacao {
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+/* Campos obrigatórios */
+input[required] {
+    border-left: 4px solid #e74c3c;
+}
+
+input[required]:focus {
+    border-left-color: #27ae60;
+}
+
+.input-group.compact {
+    flex: 0 0 auto;
+}
+
+.input-group.expanded {
+    flex: 1 1 auto;
+}
+
+.input-group.equal {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
     outline: none;
     border-color: #3498db;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    transform: translateY(-1px);
 }
 
 .form-group input:invalid, .form-group select:invalid {
@@ -116,6 +275,13 @@ main {
 .form-group input.error, .form-group select.error {
     border-color: #e74c3c;
     background-color: #fdf2f2;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
 }
 
 .error-message {
@@ -123,21 +289,137 @@ main {
     font-size: 0.875rem;
     margin-top: 0.25rem;
     display: block;
+    font-weight: 500;
 }
 
-button[type="submit"], #marcarFrequencia, #gerarRelatorio {
-    background-color: #27ae60;
+.input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: white;
+    padding: 0 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #666;
+    z-index: 1;
+}
+
+/* Seção de ações do formulário */
+.form-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 3rem;
+    padding: 2rem 0;
+    border-top: 1px solid rgba(52, 152, 219, 0.1);
+}
+
+/* Botão primário */
+.btn-primary, button[type="submit"], #marcarFrequencia, #gerarRelatorio {
+    background: linear-gradient(45deg, #27ae60, #2ecc71);
     color: white;
-    padding: 0.75rem 2rem;
+    padding: 1.2rem 3rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.3);
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 200px;
+    justify-content: center;
+}
+
+.btn-primary:hover, button[type="submit"]:hover, #marcarFrequencia:hover, #gerarRelatorio:hover {
+    background: linear-gradient(45deg, #229954, #27ae60);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+}
+
+.btn-primary:active, button[type="submit"]:active, #marcarFrequencia:active, #gerarRelatorio:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+/* Botão secundário */
+.btn-secondary {
+    background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+    color: white;
+    padding: 1rem 2.5rem;
+    border: none;
+    border-radius: 25px;
     cursor: pointer;
     font-size: 1rem;
-    transition: background-color 0.3s;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(149, 165, 166, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 180px;
+    justify-content: center;
 }
 
-button[type="submit"]:hover, #marcarFrequencia:hover, #gerarRelatorio:hover {
-    background-color: #229954;
+.btn-secondary:hover {
+    background: linear-gradient(45deg, #7f8c8d, #95a5a6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(149, 165, 166, 0.4);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(149, 165, 166, 0.3);
+}
+
+/* Elementos dos botões */
+.btn-icon {
+    font-size: 1.2rem;
+    display: inline-block;
+    animation: iconPulse 2s infinite;
+}
+
+.btn-text {
+    font-weight: inherit;
+    letter-spacing: inherit;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Efeito de ondulação nos botões */
+.btn-primary::before, .btn-secondary::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:active::before, .btn-secondary:active::before {
+    width: 300px;
+    height: 300px;
 }
 
 .busca-pessoa {
@@ -412,23 +694,53 @@ button[type="submit"]:hover, #marcarFrequencia:hover, #gerarRelatorio:hover {
     animation: spin 1s linear infinite;
 }
 
+/* Responsividade para tablets */
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 1rem;
     }
     
     .logo {
-        width: 50px;
-        height: 50px;
+        width: 60px;
+        height: 60px;
     }
     
     header h1 {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
     }
     
     nav {
         flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .form-row,
+    .form-row.two-columns,
+    .form-row.three-columns,
+    .form-row.three-columns-equal,
+    .form-row.two-columns-equal,
+    .form-row.contact-layout,
+    .form-row.location-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    /* Manter alguns layouts em tablet */
+    .form-row.location-layout,
+    .form-row.two-columns-equal {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .secao {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+        border-radius: 15px;
+    }
+    
+    main {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
     }
     
     .tipos-presenca {
@@ -439,48 +751,134 @@ button[type="submit"]:hover, #marcarFrequencia:hover, #gerarRelatorio:hover {
         flex-direction: column;
     }
     
-    main {
-        margin: 1rem auto;
-        padding: 0 0.5rem;
-    }
-    
-    .secao {
-        padding: 1rem;
-    }
-    
     table {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         overflow-x: auto;
         display: block;
         white-space: nowrap;
     }
 }
 
+/* Responsividade para smartphones */
 @media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+    
     header {
-        padding: 0.5rem;
+        padding: 1rem 0.5rem;
+    }
+    
+    header h1 {
+        font-size: 1.4rem;
+    }
+    
+    .logo {
+        width: 50px;
+        height: 50px;
     }
     
     .secao {
-        padding: 0.5rem;
+        padding: 1.5rem 1rem;
+        margin: 0.5rem;
+        border-radius: 12px;
     }
     
-    .form-group input, .form-group select {
-        padding: 0.5rem;
+    .secao h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .form-group input, .form-group select, .form-group textarea {
+        padding: 0.8rem 1rem;
+        font-size: 0.95rem;
+        border-radius: 10px;
+    }
+    
+    .input-group label {
+        font-size: 0.8rem;
+        left: 10px;
+        padding: 0 6px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding: 1.5rem 0;
+    }
+    
+    .btn-primary, button[type="submit"], #marcarFrequencia, #gerarRelatorio {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        width: 100%;
+        min-width: auto;
+        border-radius: 25px;
+    }
+    
+    .btn-secondary {
+        width: 100%;
+        padding: 0.9rem 2rem;
+        font-size: 0.95rem;
+        min-width: auto;
+        border-radius: 20px;
+    }
+    
+    .btn-icon {
+        font-size: 1.1rem;
+    }
+    
+    .nav-btn {
+        padding: 0.7rem 1.5rem;
+        font-size: 0.9rem;
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    table {
+        font-size: 0.75rem;
+    }
+    
+    th, td {
+        padding: 0.3rem;
+    }
+    
+    .form-row {
+        gap: 0.8rem;
+    }
+    
+    /* Remover limitações de tamanho em mobile */
+    #cpf, #nascimento, #telefone {
+        max-width: none;
+    }
+    
+    #email {
+        min-width: auto;
+    }
+}
+
+/* Melhorias para telas muito pequenas */
+@media (max-width: 360px) {
+    .secao {
+        padding: 1rem 0.8rem;
+    }
+    
+    header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .form-group input, .form-group select, .form-group textarea {
+        padding: 0.7rem 0.8rem;
         font-size: 0.9rem;
     }
     
     button[type="submit"], #marcarFrequencia, #gerarRelatorio {
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-        width: 100%;
-    }
-    
-    table {
-        font-size: 0.7rem;
-    }
-    
-    th, td {
-        padding: 0.25rem;
+        padding: 0.7rem 1.5rem;
+        font-size: 0.95rem;
     }
 }

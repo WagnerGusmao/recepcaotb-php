@@ -566,7 +566,7 @@ R: Não há limite técnico. O sistema foi testado com mais de 4.600 pessoas.
 ### Problemas Comuns
 
 **P: A página não carrega, o que fazer?**
-R: Verifique se o servidor está rodando (`npm start`) e se a URL está correta.
+R: Verifique se o servidor PHP está rodando (`php -S localhost:8080`) e se a URL está correta.
 
 **P: Erro "Token expirado", como resolver?**
 R: Faça login novamente. Tokens expiram por segurança.

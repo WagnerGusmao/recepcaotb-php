@@ -597,14 +597,14 @@ AVISO: JWT_SECRET não está definido
 JWT_SECRET=sua_chave_secreta_aqui
 ```
 
-#### 3. Porta 3000 em uso
+#### 3. Porta 8080 em uso
 ```
-Error: listen EADDRINUSE :::3000
+Error: listen EADDRINUSE :::8080
 ```
 **Solução**: Matar processo ou usar outra porta
 ```bash
-# Matar processo na porta 3000
-taskkill /F /IM node.exe
+# Matar processo na porta 8080
+taskkill /F /IM php.exe
 
 # Ou alterar porta no .env
 PORT=3001

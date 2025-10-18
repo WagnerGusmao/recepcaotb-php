@@ -273,9 +273,9 @@ npm start
 **Saída esperada**:
 ```
 > sistema-frequencia-terra-bugio@1.0.0 start
-> node backend/server.js
+> php -S localhost:8080
 
-Servidor rodando na porta 3000
+Servidor PHP rodando na porta 8080
 Ambiente: development
 JWT Secret: *** (definido)
 Conexão com o banco de dados estabelecida com sucesso!
@@ -299,7 +299,7 @@ Conexão com o banco de dados estabelecida com sucesso!
 ### 1. Teste de Conectividade
 ```bash
 # Testar se servidor está rodando
-curl http://localhost:3000/api/health
+curl http://localhost:8080/test_php_config.php
 
 # Ou no navegador
 # http://localhost:3000/api/health
@@ -414,7 +414,7 @@ netstat -ano | findstr :3000
 taskkill /PID <PID> /F
 
 # Linux/macOS - Matar processo na porta 3000
-lsof -ti:3000 | xargs kill -9
+lsof -ti:8080 | xargs kill -9
 
 # Ou alterar porta no .env
 PORT=3001

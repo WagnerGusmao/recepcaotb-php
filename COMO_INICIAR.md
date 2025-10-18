@@ -42,7 +42,7 @@ Este comando irá:
 npm start
 ```
 
-O servidor estará rodando em: `http://localhost:3000`
+O servidor estará rodando em: `http://localhost:8080`
 
 ### 4. Acessar o Sistema
 Abra o navegador e acesse:
@@ -123,9 +123,9 @@ npm install bcrypt --save
 ```
 
 ### Erro: EADDRINUSE (porta em uso)
-**Causa:** Porta 3000 já está sendo usada
+**Causa:** Porta 8080 já está sendo usada
 **Solução:**
-1. Fechar processo que usa a porta 3000, ou
+1. Fechar processo que usa a porta 8080, ou
 2. Mudar porta no código: `const PORT = 3001;` em `server.js`
 
 ### Banco de dados não cria
@@ -137,7 +137,7 @@ node migrate.js
 
 ### Login não funciona
 **Verificar:**
-1. Servidor está rodando? (`npm start`)
+1. Servidor está rodando? (`php -S localhost:8080`)
 2. Migração foi executada? (`npm run migrate`)
 3. Console do navegador mostra erros?
 

@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel - Sistema de Frequência</title>
+    <title>Painel Terra do Bugio - Sistema de Recepção</title>
+    
+    <!-- Favicon - Logo Terra do Bugio -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" href="imagem/terrabugio.jpg">
+    
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -20,6 +26,48 @@
     <script src="js/municipios-completos.js"></script>
     
     <script>
+        // Função para formatar data do MySQL para exibição correta
+        function formatarDataMySQL(dataString) {
+            if (!dataString) return 'N/A';
+            
+            try {
+                // Se a data não tem timezone, assumir que é horário local (São Paulo)
+                if (dataString.indexOf('T') === -1 && dataString.indexOf('+') === -1 && dataString.indexOf('Z') === -1) {
+                    // Adicionar 'T' para formato ISO e tratar como horário local
+                    const isoString = dataString.replace(' ', 'T');
+                    const date = new Date(isoString);
+                    return date.toLocaleDateString('pt-BR');
+                }
+                
+                const date = new Date(dataString);
+                return date.toLocaleDateString('pt-BR');
+            } catch (error) {
+                console.error('Erro ao formatar data:', error);
+                return dataString;
+            }
+        }
+        
+        // Função para formatar data/hora do MySQL para exibição correta
+        function formatarDataHoraMySQL(dataString) {
+            if (!dataString) return 'N/A';
+            
+            try {
+                // Se a data não tem timezone, assumir que é horário local (São Paulo)
+                if (dataString.indexOf('T') === -1 && dataString.indexOf('+') === -1 && dataString.indexOf('Z') === -1) {
+                    // Adicionar 'T' para formato ISO e tratar como horário local
+                    const isoString = dataString.replace(' ', 'T');
+                    const date = new Date(isoString);
+                    return date.toLocaleString('pt-BR');
+                }
+                
+                const date = new Date(dataString);
+                return date.toLocaleString('pt-BR');
+            } catch (error) {
+                console.error('Erro ao formatar data/hora:', error);
+                return dataString;
+            }
+        }
+
         // Função para abrir a página de backup/restore
         function abrirBackup() {
             // Verificar se o usuário é administrador
@@ -87,8 +135,10 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
-        .header { background: #007bff; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        .header h1 { margin: 0; font-size: 1.5rem; }
+        .header { background: rgba(44, 62, 80, 0.95); backdrop-filter: blur(10px); color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px; display: flex; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 1.5rem; flex-grow: 1; }
+        .header .logo { width: 50px; height: 50px; margin-right: 15px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
+        .header .logo:hover { transform: scale(1.05); }
         .menu { display: flex; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
         .menu-btn { padding: 8px 15px; background: #f8f9fa; border: 1px solid #ddd; cursor: pointer; border-radius: 5px; font-size: 0.9rem; }
         .menu-btn.active { background: #007bff; color: white; }
@@ -122,14 +172,17 @@
 </head>
 <body>
     <div class="header">
-        <h1>📊 Painel do Sistema</h1>
+        <img src="imagem/terrabugio.jpg" alt="Terra do Bugio" class="logo">
+        <h1>📊 Painel Terra do Bugio</h1>
         <span id="userInfo"></span>
-        <button onclick="logout()" style="float: right; background: #dc3545; color: white; border: none; padding: 8px 15px;">Sair</button>
+        <button onclick="logout()" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; margin-left: 10px;">Sair</button>
     </div>
 
     <div class="menu">
         <button class="menu-btn active" onclick="showSection('frequencia')">📝 Frequência</button>
         <button class="menu-btn" onclick="showSection('cadastro')">👤 Cadastrar Pessoa</button>
+        <button class="menu-btn" onclick="showSection('voluntarios')">🤝 Voluntários</button>
+        <button class="menu-btn" onclick="showSection('frequencia_voluntarios')" id="btnFrequenciaVoluntarios" style="display: none;">⏰ Frequência Voluntários</button>
         <button class="menu-btn" onclick="showSection('relatorios')">📊 Relatórios</button>
         <button class="menu-btn" onclick="showSection('usuarios')">👥 Usuários</button>
         <button class="menu-btn" onclick="showSection('duplicatas')">🔍 Duplicatas</button>
@@ -346,6 +399,146 @@
         </div>
     </div>
 
+    <!-- Seção Voluntários -->
+    <div id="voluntarios" class="section">
+        <h2>🤝 Gerenciar Voluntários</h2>
+        
+        <div style="margin-bottom: 20px;">
+            <button onclick="mostrarModalNovoVoluntario()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                ➕ Novo Voluntário
+            </button>
+            <input type="text" id="buscaVoluntarios" placeholder="Buscar voluntários por nome, CPF ou e-mail" 
+                   style="width: 300px; padding: 8px; margin-right: 10px;">
+            <button onclick="buscarVoluntarios()" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer;">
+                🔍 Buscar
+            </button>
+        </div>
+        
+        <div id="listaVoluntarios">
+            <p>Carregando voluntários...</p>
+        </div>
+    </div>
+
+    <!-- Seção Frequência de Voluntários -->
+    <div id="frequencia_voluntarios" class="section">
+        <h2>⏰ Lançar Frequência de Voluntários</h2>
+        <p style="color: #666; margin-bottom: 20px;">
+            <i>⚠️ Acesso restrito: Apenas administradores e líderes podem lançar frequência de voluntários.</i>
+        </p>
+        
+        <!-- Busca de Voluntário -->
+        <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+            <h3>1. Selecionar Voluntário</h3>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                <input type="text" id="buscaVoluntario" placeholder="Buscar voluntário por nome, CPF ou e-mail" 
+                       style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="buscarVoluntarioFrequencia()" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                    🔍 Buscar
+                </button>
+            </div>
+            <div id="resultadoBuscaVoluntario"></div>
+        </div>
+        
+        <!-- Formulário de Frequência -->
+        <div id="formularioFrequenciaVoluntario" style="display: none; padding: 15px; background: #e8f5e8; border-radius: 5px;">
+            <h3>2. Registrar Frequência</h3>
+            <div id="dadosVoluntarioSelecionado" style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px; border-left: 4px solid #28a745;"></div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Data do Trabalho:</label>
+                    <input type="date" id="dataTrabalhoVoluntario" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hora de Início:</label>
+                    <input type="time" id="horaInicioVoluntario" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hora de Fim:</label>
+                    <input type="time" id="horaFimVoluntario" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Local de Início:</label>
+                    <select id="localInicioVoluntario" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Selecione o local de início</option>
+                        <option value="Recepção">Recepção</option>
+                        <option value="Café">Café</option>
+                        <option value="Brechó">Brechó</option>
+                        <option value="Memorial">Memorial</option>
+                        <option value="Hospital">Hospital</option>
+                        <option value="Pet">Pet</option>
+                        <option value="Espaço Criança">Espaço Criança</option>
+                        <option value="Acolhimento">Acolhimento</option>
+                        <option value="Segurança">Segurança</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Local de Fim (opcional):</label>
+                    <select id="localFimVoluntario" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Mesmo local de início</option>
+                        <option value="Recepção">Recepção</option>
+                        <option value="Café">Café</option>
+                        <option value="Brechó">Brechó</option>
+                        <option value="Memorial">Memorial</option>
+                        <option value="Hospital">Hospital</option>
+                        <option value="Pet">Pet</option>
+                        <option value="Espaço Criança">Espaço Criança</option>
+                        <option value="Acolhimento">Acolhimento</option>
+                        <option value="Segurança">Segurança</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Observações (opcional):</label>
+                <textarea id="observacoesVoluntario" rows="3" placeholder="Observações sobre o trabalho realizado..." 
+                          style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+            </div>
+            
+            <div style="text-align: center;">
+                <button onclick="registrarFrequenciaVoluntario()" style="background: #28a745; color: white; padding: 12px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                    ✅ Registrar Frequência
+                </button>
+                <button onclick="cancelarFrequenciaVoluntario()" style="background: #6c757d; color: white; padding: 12px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;">
+                    ❌ Cancelar
+                </button>
+            </div>
+        </div>
+        
+        <!-- Histórico de Frequências -->
+        <div style="margin-top: 30px;">
+            <h3>📋 Frequências Recentes</h3>
+            <div style="margin-bottom: 15px;">
+                <input type="date" id="filtroDataInicioVoluntarios" placeholder="Data início" style="margin-right: 10px;">
+                <input type="date" id="filtroDataFimVoluntarios" placeholder="Data fim" style="margin-right: 10px;">
+                <select id="filtroLocalVoluntarios" style="margin-right: 10px;">
+                    <option value="">Todos os locais</option>
+                    <option value="Recepção">Recepção</option>
+                    <option value="Café">Café</option>
+                    <option value="Brechó">Brechó</option>
+                    <option value="Memorial">Memorial</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Pet">Pet</option>
+                    <option value="Espaço Criança">Espaço Criança</option>
+                    <option value="Acolhimento">Acolhimento</option>
+                    <option value="Segurança">Segurança</option>
+                </select>
+                <button onclick="carregarFrequenciasVoluntarios()" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                    🔍 Filtrar
+                </button>
+            </div>
+            <div id="listaFrequenciasVoluntarios">
+                <p>Carregando frequências...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Seção Relatórios -->
     <div id="relatorios" class="section">
         <h2>📊 Relatórios</h2>
@@ -368,7 +561,47 @@
                 <button onclick="gerarRelatorioPessoasCidades(this)" style="background: #6f42c1; color: white; margin-right: 10px;">Pessoas por Cidade</button>
                 <button onclick="gerarRelatorioContatos(this)" style="background: #28a745; color: white; margin-right: 10px;">Relatório de Contatos</button>
                 <button onclick="gerarRelatorioCadastros(this)" style="background: #fd7e14; color: white; margin-right: 10px;">Relatório de Cadastros</button>
+                <button onclick="gerarRelatorioVoluntarios(this)" style="background: #e83e8c; color: white; margin-right: 10px;" id="btnRelatorioVoluntarios">⏰ Relatório Voluntários</button>
             </div>
+            
+            <!-- Filtros específicos para relatório de voluntários -->
+            <div id="filtrosVoluntarios" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #e83e8c;">
+                <h4 style="margin: 0 0 15px 0; color: #e83e8c;">⏰ Filtros para Relatório de Voluntários</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Local de Trabalho:</label>
+                        <select id="filtroLocalVoluntarios" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Todos os locais</option>
+                            <option value="Recepção">Recepção</option>
+                            <option value="Café">Café</option>
+                            <option value="Brechó">Brechó</option>
+                            <option value="Memorial">Memorial</option>
+                            <option value="Hospital">Hospital</option>
+                            <option value="Pet">Pet</option>
+                            <option value="Espaço Criança">Espaço Criança</option>
+                            <option value="Acolhimento">Acolhimento</option>
+                            <option value="Segurança">Segurança</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Voluntário Específico:</label>
+                        <select id="filtroVoluntarioEspecifico" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Todos os voluntários</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Período:</label>
+                        <select id="filtroPeriodoVoluntarios" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Personalizado</option>
+                            <option value="hoje">Hoje</option>
+                            <option value="semana">Esta semana</option>
+                            <option value="mes">Este mês</option>
+                            <option value="trimestre">Último trimestre</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
             <div style="margin-top: 15px; display: none;" id="botoesExportacao">
                 <strong>📤 Exportar:</strong>
                 <button onclick="exportarCSV(this)" style="background: #17a2b8; color: white; margin: 0 5px; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer;">📄 CSV</button>
@@ -392,8 +625,16 @@
             <h3 style="margin-top: 0; color: #007bff;">👤 Cadastrar Novo Usuário</h3>
             
             <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Selecionar Voluntário:</label>
+                <select id="selecionarVoluntario" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="">Carregando voluntários...</option>
+                </select>
+                <small style="color: #666;">Selecione um voluntário para criar o usuário baseado nos seus dados</small>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome:</label>
-                <input type="text" id="novoUsuarioNome" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="Nome completo">
+                <input type="text" id="novoUsuarioNome" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="Nome completo" readonly>
             </div>
             
             <div style="margin-bottom: 20px;">
@@ -427,9 +668,9 @@
                     
                     <div style="margin-bottom: 15px;">
                         <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
-                            <input type="radio" name="tipoUsuario" value="responsavel" style="margin-right: 10px; margin-top: 2px;">
+                            <input type="radio" name="tipoUsuario" value="lider" style="margin-right: 10px; margin-top: 2px;">
                             <div>
-                                <div style="font-weight: bold; color: #ffc107;">👨‍💼 RESPONSÁVEL</div>
+                                <div style="font-weight: bold; color: #ffc107;">👨‍💼 LÍDER</div>
                                 <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
                                     ✅ Lançar frequências<br>
                                     ✅ Atualizar dados de pessoas<br>
@@ -460,6 +701,79 @@
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="fecharModalNovoUsuario()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
                 <button onclick="salvarNovoUsuario()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Criar Usuário</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Tipo de Usuário -->
+    <div id="modalEditarTipoUsuario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px;">
+            <h3 style="margin-top: 0; color: #007bff;">✏️ Editar Tipo de Usuário</h3>
+            
+            <div style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 5px; border-left: 4px solid #007bff;">
+                <strong>⚠️ Atenção:</strong> Apenas administradores podem alterar o tipo de usuário. Esta ação afetará as permissões do usuário no sistema.
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Usuário:</label>
+                <input type="text" id="editTipoUsuarioNome" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;" readonly>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Novo Tipo de Usuário:</label>
+                
+                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="novoTipoUsuario" value="geral" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #28a745;">👤 GERAL</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ Lançar frequências<br>
+                                    ✅ Atualizar dados de pessoas<br>
+                                    ❌ Não acessa relatórios<br>
+                                    ❌ Não gerencia usuários
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="novoTipoUsuario" value="lider" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #ffc107;">👨‍💼 LÍDER</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ Lançar frequências<br>
+                                    ✅ Atualizar dados de pessoas<br>
+                                    ✅ <strong>Acessar relatórios</strong><br>
+                                    ✅ <strong>Gerenciar voluntários</strong><br>
+                                    ❌ Não gerencia usuários
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label style="display: flex; align-items: flex-start; cursor: pointer; padding: 10px; border: 2px solid transparent; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007bff'; this.style.background='#e3f2fd'" onmouseout="this.style.borderColor='transparent'; this.style.background='white'">
+                            <input type="radio" name="novoTipoUsuario" value="administrador" style="margin-right: 10px; margin-top: 2px;">
+                            <div>
+                                <div style="font-weight: bold; color: #dc3545;">👑 ADMINISTRADOR</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                    ✅ <strong>Acesso completo ao sistema</strong><br>
+                                    ✅ Gerenciar usuários<br>
+                                    ✅ Acessar todos os relatórios<br>
+                                    ✅ Configurações avançadas
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="fecharModalEditarTipoUsuario()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancelar</button>
+                <button onclick="salvarTipoUsuario()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Salvar Alteração</button>
             </div>
         </div>
     </div>
@@ -561,6 +875,238 @@
                 <div id="resumoDuplicatas" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;"></div>
                 <div id="listaDuplicatas"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Novo Voluntário -->
+    <div id="modalNovoVoluntario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #28a745;">🤝 Cadastrar Novo Voluntário</h3>
+            
+            <form id="formNovoVoluntario" style="display: grid; gap: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome: *</label>
+                    <input type="text" id="voluntarioNome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">CPF:</label>
+                    <input type="text" id="voluntarioCpf" placeholder="000.000.000-00" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Data de Nascimento:</label>
+                    <input type="date" id="voluntarioDataNascimento" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Religião:</label>
+                    <select id="voluntarioReligiao" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Selecione a religião</option>
+                        <option value="Católica">Católica</option>
+                        <option value="Evangélica">Evangélica</option>
+                        <option value="Espírita">Espírita</option>
+                        <option value="Espiritualista Livre">Espiritualista Livre</option>
+                        <option value="Umbanda">Umbanda</option>
+                        <option value="Candomblé">Candomblé</option>
+                        <option value="Budista">Budista</option>
+                        <option value="Judaica">Judaica</option>
+                        <option value="Islâmica">Islâmica</option>
+                        <option value="Testemunha de Jeová">Testemunha de Jeová</option>
+                        <option value="Adventista">Adventista</option>
+                        <option value="Agnóstica">Agnóstica</option>
+                        <option value="Ateia">Ateia</option>
+                        <option value="Outras">Outras</option>
+                        <option value="Não informar">Não informar</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Estado:</label>
+                        <select id="voluntarioEstado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Selecione</option>
+                            <option value="AC">AC</option>
+                            <option value="AL">AL</option>
+                            <option value="AP">AP</option>
+                            <option value="AM">AM</option>
+                            <option value="BA">BA</option>
+                            <option value="CE">CE</option>
+                            <option value="DF">DF</option>
+                            <option value="ES">ES</option>
+                            <option value="GO">GO</option>
+                            <option value="MA">MA</option>
+                            <option value="MT">MT</option>
+                            <option value="MS">MS</option>
+                            <option value="MG">MG</option>
+                            <option value="PA">PA</option>
+                            <option value="PB">PB</option>
+                            <option value="PR">PR</option>
+                            <option value="PE">PE</option>
+                            <option value="PI">PI</option>
+                            <option value="RJ">RJ</option>
+                            <option value="RN">RN</option>
+                            <option value="RS">RS</option>
+                            <option value="RO">RO</option>
+                            <option value="RR">RR</option>
+                            <option value="SC">SC</option>
+                            <option value="SP">SP</option>
+                            <option value="SE">SE</option>
+                            <option value="TO">TO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Cidade:</label>
+                        <input type="text" id="voluntarioCidade" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">E-mail:</label>
+                    <input type="email" id="voluntarioEmail" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <!-- Seção de Usuário -->
+                <div style="border-top: 2px solid #28a745; padding-top: 15px; margin-top: 15px;">
+                    <h4 style="margin: 0 0 15px 0; color: #28a745;">👤 Dados de Usuário do Sistema</h4>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            <input type="checkbox" id="criarUsuario" checked style="margin-right: 8px;">
+                            Criar usuário do sistema para este voluntário
+                        </label>
+                        <small style="color: #666;">O voluntário poderá acessar o sistema com as credenciais criadas</small>
+                    </div>
+                    
+                    <div id="camposUsuario" style="display: grid; gap: 15px; margin-top: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Usuário:</label>
+                            <select id="tipoUsuario" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="geral">Geral</option>
+                                <option value="lider">Líder</option>
+                            </select>
+                            <small style="color: #666;">Apenas administradores podem criar outros administradores</small>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Senha Inicial:</label>
+                            <input type="text" id="senhaInicial" placeholder="Será gerada automaticamente se deixar vazio" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #666;">Se não informar, será gerada uma senha aleatória</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" onclick="fecharModalVoluntario()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancelar
+                    </button>
+                    <button type="submit" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Cadastrar Voluntário
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Voluntário -->
+    <div id="modalEditarVoluntario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #007bff;">✏️ Editar Voluntário</h3>
+            
+            <form id="formEditarVoluntario" style="display: grid; gap: 15px;">
+                <input type="hidden" id="editVoluntarioId">
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome: *</label>
+                    <input type="text" id="editVoluntarioNome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">CPF:</label>
+                    <input type="text" id="editVoluntarioCpf" placeholder="000.000.000-00" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Data de Nascimento:</label>
+                    <input type="date" id="editVoluntarioDataNascimento" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Religião:</label>
+                    <select id="editVoluntarioReligiao" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Selecione a religião</option>
+                        <option value="Católica">Católica</option>
+                        <option value="Evangélica">Evangélica</option>
+                        <option value="Espírita">Espírita</option>
+                        <option value="Espiritualista Livre">Espiritualista Livre</option>
+                        <option value="Umbanda">Umbanda</option>
+                        <option value="Candomblé">Candomblé</option>
+                        <option value="Budista">Budista</option>
+                        <option value="Judaica">Judaica</option>
+                        <option value="Islâmica">Islâmica</option>
+                        <option value="Testemunha de Jeová">Testemunha de Jeová</option>
+                        <option value="Adventista">Adventista</option>
+                        <option value="Agnóstica">Agnóstica</option>
+                        <option value="Ateia">Ateia</option>
+                        <option value="Outras">Outras</option>
+                        <option value="Não informar">Não informar</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Estado:</label>
+                        <select id="editVoluntarioEstado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">Selecione</option>
+                            <option value="AC">AC</option>
+                            <option value="AL">AL</option>
+                            <option value="AP">AP</option>
+                            <option value="AM">AM</option>
+                            <option value="BA">BA</option>
+                            <option value="CE">CE</option>
+                            <option value="DF">DF</option>
+                            <option value="ES">ES</option>
+                            <option value="GO">GO</option>
+                            <option value="MA">MA</option>
+                            <option value="MT">MT</option>
+                            <option value="MS">MS</option>
+                            <option value="MG">MG</option>
+                            <option value="PA">PA</option>
+                            <option value="PB">PB</option>
+                            <option value="PR">PR</option>
+                            <option value="PE">PE</option>
+                            <option value="PI">PI</option>
+                            <option value="RJ">RJ</option>
+                            <option value="RN">RN</option>
+                            <option value="RS">RS</option>
+                            <option value="RO">RO</option>
+                            <option value="RR">RR</option>
+                            <option value="SC">SC</option>
+                            <option value="SP">SP</option>
+                            <option value="SE">SE</option>
+                            <option value="TO">TO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Cidade:</label>
+                        <input type="text" id="editVoluntarioCidade" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">E-mail:</label>
+                    <input type="email" id="editVoluntarioEmail" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" onclick="fecharModalEditarVoluntario()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancelar
+                    </button>
+                    <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -679,6 +1225,8 @@
             
             if (sectionId === 'usuarios' && user.tipo === 'administrador') {
                 carregarUsuarios();
+            } else if (sectionId === 'voluntarios' && (user.tipo === 'administrador' || user.tipo === 'lider')) {
+                carregarVoluntarios();
             } else if (sectionId === 'perfil') {
                 carregarPerfil();
             } else if (sectionId === 'duplicatas' && user.tipo === 'administrador') {
@@ -722,7 +1270,7 @@
             resultado.innerHTML = '<p style="padding: 10px; color: #666;">Buscando...</p>';
             
             try {
-                const url = `http://localhost:3000/api/pessoas?busca=${encodeURIComponent(termo)}`;
+                const url = `php/api/pessoas.php?busca=${encodeURIComponent(termo)}`;
                 console.log('URL:', url);
                 console.log('Enviando header Authorization:', `Bearer ${token.substring(0, 30)}...`);
                 
@@ -886,7 +1434,7 @@
             setButtonLoading(button, true);
             
             try {
-                const response = await fetch('http://localhost:3000/api/frequencias', {
+                const response = await fetch('php/api/frequencias.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -980,11 +1528,14 @@
         async function gerarRelatorio(button) {
             setButtonLoading(button, true);
             
+            // Ocultar filtros específicos de voluntários
+            document.getElementById('filtrosVoluntarios').style.display = 'none';
+            
             const dataInicio = document.getElementById('dataInicio').value;
             const dataFim = document.getElementById('dataFim').value;
             const tipo = document.getElementById('filtroTipo').value;
             
-            let url = 'http://localhost:3000/api/frequencias?';
+            let url = 'php/api/frequencias.php?';
             if (dataInicio) url += `dataInicio=${dataInicio}&`;
             if (dataFim) url += `dataFim=${dataFim}&`;
             if (tipo) url += `tipo=${tipo}&`;
@@ -1088,8 +1639,8 @@
                                     <td><strong>${index + 1}</strong> ${f.pessoa_nome || 'Nome não encontrado'}</td>
                                     <td><span style="background: ${getTipoColor(f.tipo.toLowerCase())}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">${f.tipo.toUpperCase().replace('_', ' ')}</span></td>
                                     <td>${f.numero_senha || f.numero_senha === 0 ? f.numero_senha : 'N/A'}</td>
-                                    <td>${new Date(f.data).toLocaleDateString('pt-BR')}</td>
-                                    <td>${new Date(f.created_at).toLocaleString('pt-BR')}</td>
+                                    <td>${formatarDataMySQL(f.data)}</td>
+                                    <td>${formatarDataHoraMySQL(f.created_at)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1114,8 +1665,11 @@
         async function gerarRelatorioMensal(button) {
             setButtonLoading(button, true);
             
+            // Ocultar filtros específicos de voluntários
+            document.getElementById('filtrosVoluntarios').style.display = 'none';
+            
             try {
-                const response = await fetch('http://localhost:3000/api/frequencias', {
+                const response = await fetch('php/api/frequencias.php', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -1233,13 +1787,16 @@
 
         async function gerarRelatorioContatos(button) {
             setButtonLoading(button, true);
+            
+            // Ocultar filtros específicos de voluntários
+            document.getElementById('filtrosVoluntarios').style.display = 'none';
             try {
                 // Usar os mesmos filtros de data dos outros relatórios
                 const dataInicio = document.getElementById('dataInicio').value;
                 const dataFim = document.getElementById('dataFim').value;
                 const tipo = document.getElementById('filtroTipo').value;
                 
-                let url = 'http://localhost:3000/api/frequencias?';
+                let url = 'php/api/frequencias.php?';
                 if (dataInicio) url += `dataInicio=${dataInicio}&`;
                 if (dataFim) url += `dataFim=${dataFim}&`;
                 if (tipo) url += `tipo=${tipo}&`;
@@ -1413,13 +1970,16 @@
 
         async function gerarRelatorioPessoasCidades(button) {
             setButtonLoading(button, true);
+            
+            // Ocultar filtros específicos de voluntários
+            document.getElementById('filtrosVoluntarios').style.display = 'none';
             try {
                 // Usar os mesmos filtros de data do relatório geral
                 const dataInicio = document.getElementById('dataInicio').value;
                 const dataFim = document.getElementById('dataFim').value;
                 const tipo = document.getElementById('filtroTipo').value;
                 
-                let url = 'http://localhost:3000/api/frequencias?';
+                let url = 'php/api/frequencias.php?';
                 if (dataInicio) url += `dataInicio=${dataInicio}&`;
                 if (dataFim) url += `dataFim=${dataFim}&`;
                 if (tipo) url += `tipo=${tipo}&`;
@@ -1663,8 +2223,11 @@
 
         async function gerarRelatorioCadastros(button) {
             setButtonLoading(button, true);
+            
+            // Ocultar filtros específicos de voluntários
+            document.getElementById('filtrosVoluntarios').style.display = 'none';
             try {
-                const response = await fetch('http://localhost:3000/api/pessoas', {
+                const response = await fetch('php/api/pessoas.php', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -1800,7 +2363,7 @@
                                         <td style="padding: 10px;">${p.cidade || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
                                         <td style="padding: 10px;">${p.estado || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
                                         <td style="padding: 10px;">${p.religiao || '<span style="color: #6c757d; font-style: italic;">Não informado</span>'}</td>
-                                        <td style="padding: 10px;">${p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                                        <td style="padding: 10px;">${p.created_at ? formatarDataMySQL(p.created_at) : 'N/A'}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -1833,6 +2396,296 @@
                         <h3>❌ Erro ao gerar relatório</h3>
                         <p>Não foi possível carregar os dados de cadastros.</p>
                         <p style="font-size: 14px; color: #666;">Erro: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                setButtonLoading(button, false);
+            }
+        }
+
+        async function gerarRelatorioVoluntarios(button) {
+            setButtonLoading(button, true);
+            
+            // Mostrar filtros específicos para voluntários e ocultar outros
+            document.getElementById('filtrosVoluntarios').style.display = 'block';
+            
+            // Ocultar filtros de outros relatórios se existirem
+            const outrosFiltros = document.querySelectorAll('[id*="filtro"]:not(#filtrosVoluntarios)');
+            outrosFiltros.forEach(filtro => {
+                if (filtro.style && filtro.id !== 'filtroTipo' && filtro.id !== 'dataInicio' && filtro.id !== 'dataFim') {
+                    filtro.style.display = 'none';
+                }
+            });
+            
+            try {
+                const token = localStorage.getItem('token');
+                
+                // Obter filtros
+                const dataInicio = document.getElementById('dataInicio').value;
+                const dataFim = document.getElementById('dataFim').value;
+                const localFiltro = document.getElementById('filtroLocalVoluntarios').value;
+                const voluntarioFiltro = document.getElementById('filtroVoluntarioEspecifico').value;
+                const periodoFiltro = document.getElementById('filtroPeriodoVoluntarios').value;
+                
+                // Calcular datas baseado no período selecionado
+                let dataInicioFinal = dataInicio;
+                let dataFimFinal = dataFim;
+                
+                if (periodoFiltro) {
+                    const hoje = new Date();
+                    switch (periodoFiltro) {
+                        case 'hoje':
+                            dataInicioFinal = dataFimFinal = hoje.toISOString().split('T')[0];
+                            break;
+                        case 'semana':
+                            const inicioSemana = new Date(hoje);
+                            inicioSemana.setDate(hoje.getDate() - hoje.getDay());
+                            dataInicioFinal = inicioSemana.toISOString().split('T')[0];
+                            dataFimFinal = hoje.toISOString().split('T')[0];
+                            break;
+                        case 'mes':
+                            dataInicioFinal = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+                            dataFimFinal = hoje.toISOString().split('T')[0];
+                            break;
+                        case 'trimestre':
+                            const inicioTrimestre = new Date(hoje);
+                            inicioTrimestre.setMonth(hoje.getMonth() - 3);
+                            dataInicioFinal = inicioTrimestre.toISOString().split('T')[0];
+                            dataFimFinal = hoje.toISOString().split('T')[0];
+                            break;
+                    }
+                }
+                
+                // Construir URL com filtros
+                let url = 'php/api/frequencia_voluntarios?limit=1000';
+                if (dataInicioFinal) url += `&data_inicio=${dataInicioFinal}`;
+                if (dataFimFinal) url += `&data_fim=${dataFimFinal}`;
+                if (localFiltro) url += `&local_inicio=${encodeURIComponent(localFiltro)}`;
+                if (voluntarioFiltro) url += `&voluntario_id=${voluntarioFiltro}`;
+                
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const frequencias = data.frequencias || [];
+                
+                // Processar dados para estatísticas
+                const totalFrequencias = frequencias.length;
+                const voluntariosUnicos = new Set(frequencias.map(f => f.voluntario_id)).size;
+                const locaisTrabalho = {};
+                const voluntarioStats = {};
+                const horasTrabalhadas = {};
+                
+                frequencias.forEach(freq => {
+                    // Contar por local
+                    locaisTrabalho[freq.local_inicio] = (locaisTrabalho[freq.local_inicio] || 0) + 1;
+                    
+                    // Estatísticas por voluntário
+                    if (!voluntarioStats[freq.voluntario_nome]) {
+                        voluntarioStats[freq.voluntario_nome] = {
+                            nome: freq.voluntario_nome,
+                            cpf: freq.voluntario_cpf,
+                            frequencias: 0,
+                            locais: new Set(),
+                            ultimaFrequencia: freq.data_trabalho
+                        };
+                    }
+                    voluntarioStats[freq.voluntario_nome].frequencias++;
+                    voluntarioStats[freq.voluntario_nome].locais.add(freq.local_inicio);
+                    
+                    // Calcular horas trabalhadas (se tiver hora fim)
+                    if (freq.hora_inicio && freq.hora_fim) {
+                        const inicio = new Date(`2000-01-01T${freq.hora_inicio}`);
+                        const fim = new Date(`2000-01-01T${freq.hora_fim}`);
+                        const horas = (fim - inicio) / (1000 * 60 * 60);
+                        if (horas > 0 && horas < 24) {
+                            horasTrabalhadas[freq.voluntario_nome] = (horasTrabalhadas[freq.voluntario_nome] || 0) + horas;
+                        }
+                    }
+                });
+                
+                // Ordenar locais por frequência
+                const locaisOrdenados = Object.entries(locaisTrabalho)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5);
+                
+                // Ordenar voluntários por frequência
+                const voluntariosOrdenados = Object.values(voluntarioStats)
+                    .sort((a, b) => b.frequencias - a.frequencias)
+                    .slice(0, 10);
+                
+                // Gerar HTML do relatório
+                const filtrosAplicados = [];
+                if (dataInicioFinal) filtrosAplicados.push(`Data início: ${formatarDataMySQL(dataInicioFinal)}`);
+                if (dataFimFinal) filtrosAplicados.push(`Data fim: ${formatarDataMySQL(dataFimFinal)}`);
+                if (localFiltro) filtrosAplicados.push(`Local: ${localFiltro}`);
+                if (voluntarioFiltro) {
+                    const voluntarioNome = document.querySelector(`#filtroVoluntarioEspecifico option[value="${voluntarioFiltro}"]`)?.textContent;
+                    if (voluntarioNome) filtrosAplicados.push(`Voluntário: ${voluntarioNome}`);
+                }
+                if (periodoFiltro) filtrosAplicados.push(`Período: ${periodoFiltro}`);
+                
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <!-- Cabeçalho do Relatório -->
+                        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e83e8c;">
+                            <h3 style="color: #e83e8c; margin: 0; font-size: 24px;">⏰ Relatório de Frequência de Voluntários</h3>
+                            <p style="color: #666; margin: 5px 0 0 0;">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+                            ${filtrosAplicados.length > 0 ? `<p style="color: #666; font-size: 14px; margin: 5px 0 0 0;"><strong>Filtros:</strong> ${filtrosAplicados.join(' | ')}</p>` : ''}
+                        </div>
+                        
+                        <!-- Estatísticas Gerais -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #e83e8c;">
+                                <div style="font-size: 24px; font-weight: bold; color: #e83e8c;">${totalFrequencias}</div>
+                                <div style="color: #666;">Total de Frequências</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #28a745;">
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${voluntariosUnicos}</div>
+                                <div style="color: #666;">Voluntários Ativos</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #007bff;">
+                                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${Object.keys(locaisTrabalho).length}</div>
+                                <div style="color: #666;">Locais de Trabalho</div>
+                            </div>
+                            <div style="background: white; padding: 15px; border-radius: 5px; text-align: center; border-left: 4px solid #ffc107;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">${Object.values(horasTrabalhadas).reduce((a, b) => a + b, 0).toFixed(1)}h</div>
+                                <div style="color: #666;">Horas Trabalhadas</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Locais Mais Utilizados -->
+                        ${locaisOrdenados.length > 0 ? `
+                            <div style="margin-bottom: 30px;">
+                                <h4 style="color: #e83e8c; margin-bottom: 15px;">🏢 Locais Mais Utilizados</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                    ${locaisOrdenados.map(([local, count]) => `
+                                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; text-align: center; border-left: 3px solid #e83e8c;">
+                                            <div style="font-weight: bold; color: #e83e8c;">${count}</div>
+                                            <div style="font-size: 12px; color: #666;">${local}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Top Voluntários -->
+                        ${voluntariosOrdenados.length > 0 ? `
+                            <div style="margin-bottom: 30px;">
+                                <h4 style="color: #e83e8c; margin-bottom: 15px;">🏆 Voluntários Mais Ativos</h4>
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #e83e8c; color: white;">
+                                                <th style="padding: 12px; text-align: left;">Posição</th>
+                                                <th style="padding: 12px; text-align: left;">Voluntário</th>
+                                                <th style="padding: 12px; text-align: center;">Frequências</th>
+                                                <th style="padding: 12px; text-align: center;">Locais</th>
+                                                <th style="padding: 12px; text-align: center;">Horas</th>
+                                                <th style="padding: 12px; text-align: center;">Última Frequência</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${voluntariosOrdenados.map((vol, index) => `
+                                                <tr style="border-bottom: 1px solid #eee;">
+                                                    <td style="padding: 10px; text-align: center;">
+                                                        <span style="background: ${index < 3 ? ['#ffd700', '#c0c0c0', '#cd7f32'][index] : '#e9ecef'}; color: ${index < 3 ? 'white' : '#666'}; padding: 4px 8px; border-radius: 50%; font-weight: bold;">
+                                                            ${index + 1}°
+                                                        </span>
+                                                    </td>
+                                                    <td style="padding: 10px;">
+                                                        <strong>${vol.nome}</strong><br>
+                                                        <small style="color: #666;">${vol.cpf || 'CPF não informado'}</small>
+                                                    </td>
+                                                    <td style="padding: 10px; text-align: center; font-weight: bold; color: #e83e8c;">${vol.frequencias}</td>
+                                                    <td style="padding: 10px; text-align: center;">${vol.locais.size}</td>
+                                                    <td style="padding: 10px; text-align: center;">${(horasTrabalhadas[vol.nome] || 0).toFixed(1)}h</td>
+                                                    <td style="padding: 10px; text-align: center;">${formatarDataMySQL(vol.ultimaFrequencia)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Lista Completa de Frequências -->
+                        <h4 style="color: #e83e8c; margin-bottom: 15px;">📋 Detalhamento das Frequências (${totalFrequencias} registros)</h4>
+                        <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead style="position: sticky; top: 0; background: white;">
+                                    <tr style="background: #e83e8c; color: white;">
+                                        <th style="padding: 12px; text-align: left;">Data</th>
+                                        <th style="padding: 12px; text-align: left;">Voluntário</th>
+                                        <th style="padding: 12px; text-align: center;">Horário</th>
+                                        <th style="padding: 12px; text-align: left;">Local Início</th>
+                                        <th style="padding: 12px; text-align: left;">Local Fim</th>
+                                        <th style="padding: 12px; text-align: left;">Observações</th>
+                                        <th style="padding: 12px; text-align: left;">Lançado por</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${frequencias.length > 0 ? frequencias.map(freq => `
+                                        <tr style="border-bottom: 1px solid #eee;">
+                                            <td style="padding: 10px;">${formatarDataMySQL(freq.data_trabalho)}</td>
+                                            <td style="padding: 10px;">
+                                                <strong>${freq.voluntario_nome}</strong><br>
+                                                <small style="color: #666;">${freq.voluntario_cpf || 'CPF não informado'}</small>
+                                            </td>
+                                            <td style="padding: 10px; text-align: center;">
+                                                ${freq.hora_inicio}${freq.hora_fim ? ` - ${freq.hora_fim}` : ''}
+                                            </td>
+                                            <td style="padding: 10px;">
+                                                <span style="background: #e8f5e8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">
+                                                    ${freq.local_inicio}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 10px;">
+                                                ${freq.local_fim ? `<span style="background: #fff3cd; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">${freq.local_fim}</span>` : '-'}
+                                            </td>
+                                            <td style="padding: 10px; max-width: 200px;">
+                                                ${freq.observacoes ? `<small>${freq.observacoes}</small>` : '-'}
+                                            </td>
+                                            <td style="padding: 10px;">
+                                                <small>${freq.lancado_por_nome || 'N/A'}</small>
+                                            </td>
+                                        </tr>
+                                    `).join('') : `
+                                        <tr>
+                                            <td colspan="7" style="padding: 20px; text-align: center; color: #666;">
+                                                Nenhuma frequência encontrada para os filtros selecionados
+                                            </td>
+                                        </tr>
+                                    `}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        ${totalFrequencias === 0 ? '<div style="color: #dc3545; font-size: 14px; margin-top: 15px; text-align: center;">⚠️ Nenhuma frequência de voluntário registrada no período selecionado</div>' : ''}
+                    </div>
+                `;
+                
+                document.getElementById('botoesExportacao').style.display = 'block';
+                // Armazenar dados do relatório atual para exportação
+                window.relatorioAtual = {
+                    tipo: 'Relatório de Frequência de Voluntários',
+                    dados: frequencias,
+                    filtros: { dataInicio: dataInicioFinal, dataFim: dataFimFinal, local: localFiltro, voluntario: voluntarioFiltro }
+                };
+                
+            } catch (error) {
+                console.error('Erro no relatório de voluntários:', error);
+                document.getElementById('relatorioResultado').innerHTML = `
+                    <div style="color: red; padding: 20px; text-align: center;">
+                        <h3>❌ Erro ao gerar relatório</h3>
+                        <p>Não foi possível carregar os dados de frequência de voluntários.</p>
+                        <p style="font-size: 14px; color: #666;">Erro: ${error.message}</p>
+                        ${error.message.includes('401') ? '<p style="font-size: 14px; color: #dc3545;">Sua sessão expirou. Faça login novamente.</p>' : ''}
                     </div>
                 `;
             } finally {
@@ -2217,7 +3070,7 @@
         async function carregarUsuarios() {
             try {
                 console.log('Carregando usuários...');
-                const response = await fetch('http://localhost:3000/api/usuarios', {
+                const response = await fetch('php/api/usuarios', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -2256,6 +3109,11 @@
                                     <td><span style="background: ${getTipoUserColor(u.tipo)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 12px;">${u.tipo.toUpperCase()}</span></td>
                                     <td><span style="color: ${u.ativo ? '#28a745' : '#dc3545'}; font-weight: bold;">${u.ativo ? '✅ Ativo' : '❌ Inativo'}</span></td>
                                     <td>
+                                        <button onclick="editarTipoUsuario(${u.id}, '${u.nome}', '${u.tipo}')" 
+                                                style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 5px;"
+                                                title="Editar tipo do usuário">
+                                            ✏️ Editar Tipo
+                                        </button>
                                         <button onclick="resetarSenhaUsuario(${u.id}, '${u.nome}')" 
                                                 style="background: #ffc107; color: #000; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 5px;"
                                                 title="Resetar senha do usuário">
@@ -2285,17 +3143,205 @@
             }
         }
 
-        function mostrarModalNovoUsuario(button) {
+        async function mostrarModalNovoUsuario(button) {
             document.getElementById('modalNovoUsuario').style.display = 'block';
+            
             // Limpar campos
             document.getElementById('novoUsuarioNome').value = '';
             document.getElementById('novoUsuarioEmail').value = '';
             document.getElementById('novoUsuarioSenha').value = '';
             document.querySelectorAll('input[name="tipoUsuario"]').forEach(r => r.checked = false);
+            
+            // Carregar voluntários
+            await carregarVoluntariosParaUsuario();
+            
+            // Event listener para seleção de voluntário
+            document.getElementById('selecionarVoluntario').addEventListener('change', preencherDadosVoluntario);
+        }
+
+        // Carregar voluntários para seleção
+        async function carregarVoluntariosParaUsuario() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('php/api/voluntarios', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('selecionarVoluntario');
+                    
+                    select.innerHTML = '<option value="">Selecione um voluntário</option>';
+                    
+                    data.voluntarios.forEach(voluntario => {
+                        if (voluntario.email) { // Só mostrar voluntários com email
+                            const option = document.createElement('option');
+                            option.value = JSON.stringify(voluntario);
+                            option.textContent = `${voluntario.nome} - ${voluntario.email}`;
+                            select.appendChild(option);
+                        }
+                    });
+                } else {
+                    document.getElementById('selecionarVoluntario').innerHTML = '<option value="">Erro ao carregar voluntários</option>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar voluntários:', error);
+                document.getElementById('selecionarVoluntario').innerHTML = '<option value="">Erro ao carregar voluntários</option>';
+            }
+        }
+
+        // Preencher dados do voluntário selecionado
+        function preencherDadosVoluntario() {
+            const select = document.getElementById('selecionarVoluntario');
+            const voluntarioData = select.value;
+            
+            if (voluntarioData) {
+                const voluntario = JSON.parse(voluntarioData);
+                
+                document.getElementById('novoUsuarioNome').value = voluntario.nome;
+                document.getElementById('novoUsuarioEmail').value = voluntario.email;
+                
+                // Gerar senha aleatória
+                const senhaAleatoria = gerarSenhaAleatoria();
+                document.getElementById('novoUsuarioSenha').value = senhaAleatoria;
+                
+                // Selecionar tipo geral por padrão
+                document.querySelector('input[name="tipoUsuario"][value="geral"]').checked = true;
+            } else {
+                // Limpar campos se nenhum voluntário selecionado
+                document.getElementById('novoUsuarioNome').value = '';
+                document.getElementById('novoUsuarioEmail').value = '';
+                document.getElementById('novoUsuarioSenha').value = '';
+                document.querySelectorAll('input[name="tipoUsuario"]').forEach(r => r.checked = false);
+            }
+        }
+
+        // Função para gerar senha aleatória (reutilizada dos voluntários)
+        function gerarSenhaAleatoria() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let senha = '';
+            for (let i = 0; i < 8; i++) {
+                senha += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return senha;
         }
         
         function fecharModalNovoUsuario() {
             document.getElementById('modalNovoUsuario').style.display = 'none';
+        }
+
+        // Variável global para armazenar dados do usuário sendo editado
+        let usuarioEditandoTipo = null;
+
+        function editarTipoUsuario(id, nome, tipoAtual) {
+            usuarioEditandoTipo = { id, nome, tipoAtual };
+            
+            // Preencher dados no modal
+            document.getElementById('editTipoUsuarioNome').value = nome;
+            
+            // Limpar seleções anteriores
+            document.querySelectorAll('input[name="novoTipoUsuario"]').forEach(r => r.checked = false);
+            
+            // Selecionar o tipo atual
+            const radioAtual = document.querySelector(`input[name="novoTipoUsuario"][value="${tipoAtual}"]`);
+            if (radioAtual) {
+                radioAtual.checked = true;
+            }
+            
+            // Mostrar modal
+            document.getElementById('modalEditarTipoUsuario').style.display = 'block';
+        }
+
+        function fecharModalEditarTipoUsuario() {
+            document.getElementById('modalEditarTipoUsuario').style.display = 'none';
+            usuarioEditandoTipo = null;
+        }
+
+        async function salvarTipoUsuario() {
+            if (!usuarioEditandoTipo) {
+                alert('Erro: Dados do usuário não encontrados.');
+                return;
+            }
+
+            const novoTipo = document.querySelector('input[name="novoTipoUsuario"]:checked')?.value;
+            
+            if (!novoTipo) {
+                alert('Por favor, selecione o novo tipo de usuário.');
+                return;
+            }
+
+            if (novoTipo === usuarioEditandoTipo.tipoAtual) {
+                alert('O tipo selecionado é o mesmo atual. Nenhuma alteração necessária.');
+                return;
+            }
+
+            // Confirmação para alterações críticas
+            const confirmacao = confirm(
+                `Tem certeza que deseja alterar o tipo do usuário "${usuarioEditandoTipo.nome}" de "${usuarioEditandoTipo.tipoAtual.toUpperCase()}" para "${novoTipo.toUpperCase()}"?\n\n` +
+                `Esta ação afetará as permissões do usuário no sistema.`
+            );
+
+            if (!confirmacao) {
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/usuarios/${usuarioEditandoTipo.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ tipo: novoTipo })
+                });
+
+                if (response.ok) {
+                    // Criar notificação de sucesso
+                    const notification = document.createElement('div');
+                    notification.innerHTML = `✅ Tipo do usuário "${usuarioEditandoTipo.nome}" alterado para "${novoTipo.toUpperCase()}" com sucesso!`;
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        z-index: 10000;
+                        max-width: 400px;
+                        font-weight: bold;
+                    `;
+                    document.body.appendChild(notification);
+                    
+                    // Remover notificação após 4 segundos
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 4000);
+                    
+                    fecharModalEditarTipoUsuario();
+                    carregarUsuarios(); // Recarregar lista
+                } else {
+                    if (response.status === 401) {
+                        alert('Sessão expirada. Você será redirecionado para o login.');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    const errorData = await response.json();
+                    alert(`Erro ao alterar tipo do usuário: ${errorData.error || 'Erro desconhecido'}`);
+                }
+            } catch (error) {
+                console.error('Erro ao alterar tipo do usuário:', error);
+                alert('Erro ao alterar tipo do usuário. Verifique sua conexão e tente novamente.');
+            }
         }
         
         function salvarNovoUsuario() {
@@ -2303,6 +3349,15 @@
             const email = document.getElementById('novoUsuarioEmail').value.trim();
             const senha = document.getElementById('novoUsuarioSenha').value;
             const tipo = document.querySelector('input[name="tipoUsuario"]:checked')?.value;
+            
+            // Obter ID do voluntário selecionado
+            const voluntarioSelect = document.getElementById('selecionarVoluntario');
+            let voluntarioId = null;
+            
+            if (voluntarioSelect.value) {
+                const voluntario = JSON.parse(voluntarioSelect.value);
+                voluntarioId = voluntario.id;
+            }
             
             // Validações
             if (!nome) {
@@ -2335,13 +3390,13 @@
             }
             
             // Criar usuário
-            fetch('http://localhost:3000/api/usuarios', {
+            fetch('php/api/usuarios', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ nome, email, senha, tipo })
+                body: JSON.stringify({ nome, email, senha, tipo, voluntario_id: voluntarioId })
             }).then(async response => {
                 if (response.ok) {
                     // Criar notificação de sucesso
@@ -2399,6 +3454,11 @@
             if (event.target === modal) {
                 fecharModalNovoUsuario();
             }
+            
+            const modalEditarTipo = document.getElementById('modalEditarTipoUsuario');
+            if (event.target === modalEditarTipo) {
+                fecharModalEditarTipoUsuario();
+            }
         });
         
         // Função antiga mantida para compatibilidade (não será mais usada)
@@ -2410,7 +3470,7 @@
         function getTipoUserColor(tipo) {
             const colors = {
                 'geral': '#28a745',
-                'responsavel': '#ffc107', 
+                'lider': '#ffc107', 
                 'administrador': '#dc3545'
             };
             return colors[tipo] || '#6c757d';
@@ -2436,7 +3496,7 @@
             }
             
             try {
-                const response = await fetch(`http://localhost:3000/api/usuarios/${usuarioId}/reset-senha`, {
+                const response = await fetch(`php/api/usuarios/${usuarioId}/reset-senha`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -2502,7 +3562,7 @@
             
             try {
                 // Primeiro, buscar os dados atuais do usuário
-                const responseGet = await fetch(`http://localhost:3000/api/usuarios`, {
+                const responseGet = await fetch(`php/api/usuarios`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -2515,7 +3575,7 @@
                 }
                 
                 // Atualizar apenas o status
-                const response = await fetch(`http://localhost:3000/api/usuarios/${usuarioId}`, {
+                const response = await fetch(`php/api/usuarios/${usuarioId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -2595,7 +3655,7 @@
             };
             
             try {
-                const response = await fetch(`http://localhost:3000/api/pessoas/${pessoaSelecionada.id}`, {
+                const response = await fetch(`php/api/pessoas.php/${pessoaSelecionada.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -2667,7 +3727,7 @@
         async function testarConexao() {
             try {
                 console.log('Testando conexão com servidor...');
-                const response = await fetch('http://localhost:3000/api/pessoas?busca=test');
+                const response = await fetch('php/api/pessoas.php?busca=test');
                 console.log('Teste de conexão - Status:', response.status);
                 
                 if (response.ok) {
@@ -2677,7 +3737,7 @@
                 }
             } catch (error) {
                 console.error('❌ Erro de conexão:', error);
-                alert('ATENÇÃO: Não foi possível conectar ao servidor.\nVerifique se o backend está rodando na porta 3000.');
+                alert('ATENÇÃO: Não foi possível conectar ao servidor.\nVerifique se o servidor PHP está rodando na porta 8080.');
             }
         }
         
@@ -2718,7 +3778,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:3000/api/usuarios/perfil', {
+                const response = await fetch('php/api/usuarios/perfil', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -2817,7 +3877,7 @@
                 const nome = document.getElementById('perfilNome').value.trim();
                 const email = document.getElementById('perfilEmail').value.trim();
                 
-                const response = await fetch('http://localhost:3000/api/usuarios/perfil', {
+                const response = await fetch('php/api/usuarios/perfil', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -2880,7 +3940,7 @@
         // Mostrar estatísticas de performance
         async function mostrarEstatisticas() {
             try {
-                const response = await fetch('http://localhost:3000/api/duplicatas/stats', {
+                const response = await fetch('php/api/duplicatas.php/stats', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -2994,7 +4054,7 @@
                 
                 console.log('Iniciando análise de duplicatas com threshold:', threshold);
                 
-                const response = await fetch(`http://localhost:3000/api/duplicatas?threshold=${threshold}`, {
+                const response = await fetch(`php/api/duplicatas.php?threshold=${threshold}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -3010,6 +4070,34 @@
                         localStorage.removeItem('user');
                         window.location.href = 'login.html';
                         return;
+                    }
+                    
+                    // Tratar erro 503 (Service Unavailable) de forma especial
+                    if (response.status === 503) {
+                        const errorData = JSON.parse(errorText);
+                        const resultadoDiv = document.getElementById('resultadoDuplicatas');
+                        
+                        resultadoDiv.innerHTML = `
+                            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="color: #856404; margin: 0 0 15px 0;">⚠️ Funcionalidade Temporariamente Indisponível</h3>
+                                <div style="color: #856404; line-height: 1.6;">
+                                    <p><strong>📋 Status:</strong> ${errorData.details?.status || 'Em desenvolvimento'}</p>
+                                    <p><strong>📅 Previsão:</strong> ${errorData.details?.previsao || 'Próxima atualização'}</p>
+                                    <p><strong>💡 Alternativa:</strong> ${errorData.details?.alternativa || 'Use a busca manual'}</p>
+                                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #ffeaa7;">
+                                    <p style="margin: 0;"><strong>Mensagem:</strong> ${errorData.message}</p>
+                                </div>
+                                <div style="margin-top: 20px; text-align: center;">
+                                    <button onclick="document.getElementById('resultadoDuplicatas').innerHTML=''" 
+                                            style="background: #ffc107; color: #212529; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                                        ✅ Entendi
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        console.log('ℹ️ Funcionalidade indisponível:', errorData.message);
+                        return; // Não lançar erro, apenas mostrar a mensagem
                     }
                     
                     throw new Error(`Erro ${response.status}: ${response.statusText}\n${errorText}`);
@@ -3122,12 +4210,19 @@
                 document.getElementById('resultadoDuplicatas').style.display = 'block';
                 
             } catch (error) {
-                console.error('Erro ao analisar duplicatas:', error);
                 if (usarProgresso && timerId) {
                     progressTimer.remove(timerId);
                 }
                 
-                // Mostrar erro na interface
+                // Verificar se é erro 503 (Service Unavailable) - não é um erro real
+                if (error.message && error.message.includes('503')) {
+                    console.log('ℹ️ Funcionalidade temporariamente indisponível:', error.message);
+                    // Não mostrar como erro, pois já foi tratado no código anterior
+                    return;
+                }
+                
+                // Para outros erros reais, mostrar na interface
+                console.error('Erro ao analisar duplicatas:', error);
                 document.getElementById('resumoDuplicatas').innerHTML = `
                     <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; border-radius: 8px; text-align: center;">
                         <h4 style="color: #721c24; margin-top: 0;">❌ Erro na Análise</h4>
@@ -3156,7 +4251,7 @@
             }
             
             try {
-                const response = await fetch('http://localhost:3000/api/duplicatas/cache', {
+                const response = await fetch('php/api/duplicatas.php/cache', {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -3178,7 +4273,7 @@
         // Visualizar detalhes de um grupo
         async function visualizarGrupo(grupoId, pessoaIds) {
             try {
-                const response = await fetch(`http://localhost:3000/api/duplicatas/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
+                const response = await fetch(`php/api/duplicatas.php/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -3199,50 +4294,100 @@
         function mostrarModalMesclagem(dados) {
             mesclagem_atual = dados;
             
+            // Encontrar pessoa principal e secundárias
+            const pessoaPrincipal = dados.pessoas.find(p => p.id == dados.pessoa_principal_sugerida);
+            const pessoasSecundarias = dados.pessoas.filter(p => p.id != dados.pessoa_principal_sugerida);
+            
+            if (!pessoaPrincipal) {
+                console.error('Pessoa principal não encontrada:', dados);
+                alert('Erro: Pessoa principal não encontrada nos dados');
+                return;
+            }
+            
             let html = `
                 <div style="margin-bottom: 20px;">
                     <h4 style="color: #28a745;">✅ Pessoa Principal (será mantida)</h4>
                     <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px;">
-                        <strong>${dados.sugestao_mesclagem.pessoa_principal.nome}</strong> (ID: ${dados.sugestao_mesclagem.pessoa_principal.id})<br>
-                        <small>Frequências: ${dados.sugestao_mesclagem.pessoa_principal.total_frequencias}</small>
+                        <strong>${pessoaPrincipal.nome}</strong> (ID: ${pessoaPrincipal.id})<br>
+                        <small>Frequências: ${pessoaPrincipal.total_frequencias || 0}</small><br>
+                        ${pessoaPrincipal.telefone ? `<small>📞 ${pessoaPrincipal.telefone}</small><br>` : ''}
+                        ${pessoaPrincipal.email ? `<small>📧 ${pessoaPrincipal.email}</small><br>` : ''}
+                        ${pessoaPrincipal.cpf ? `<small>🆔 ${pessoaPrincipal.cpf}</small>` : ''}
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
                     <h4 style="color: #dc3545;">❌ Pessoas que serão removidas</h4>
-                    ${dados.sugestao_mesclagem.pessoas_secundarias.map(pessoa => `
+                    ${pessoasSecundarias.map(pessoa => `
                         <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 5px;">
                             <strong>${pessoa.nome}</strong> (ID: ${pessoa.id})<br>
-                            <small>Frequências: ${pessoa.total_frequencias} (serão transferidas)</small>
+                            <small>Frequências: ${pessoa.total_frequencias || 0} (serão transferidas)</small><br>
+                            ${pessoa.telefone ? `<small>📞 ${pessoa.telefone}</small><br>` : ''}
+                            ${pessoa.email ? `<small>📧 ${pessoa.email}</small><br>` : ''}
+                            ${pessoa.cpf ? `<small>🆔 ${pessoa.cpf}</small>` : ''}
                         </div>
                     `).join('')}
                 </div>
                 
-                <div style="margin-bottom: 20px;">
-                    <h4 style="color: #007bff;">🔄 Dados após mesclagem</h4>
-                    <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 14px;">
-                            <div><strong>Nome:</strong> ${dados.sugestao_mesclagem.dados_mesclados.nome || 'N/A'}</div>
-                            <div><strong>CPF:</strong> ${dados.sugestao_mesclagem.dados_mesclados.cpf || 'N/A'}</div>
-                            <div><strong>Telefone:</strong> ${dados.sugestao_mesclagem.dados_mesclados.telefone || 'N/A'}</div>
-                            <div><strong>E-mail:</strong> ${dados.sugestao_mesclagem.dados_mesclados.email || 'N/A'}</div>
-                            <div><strong>Cidade:</strong> ${dados.sugestao_mesclagem.dados_mesclados.cidade || 'N/A'}</div>
-                            <div><strong>Estado:</strong> ${dados.sugestao_mesclagem.dados_mesclados.estado || 'N/A'}</div>
-                            <div><strong>Religião:</strong> ${dados.sugestao_mesclagem.dados_mesclados.religiao || 'N/A'}</div>
+                ${dados.campos_conflitantes && dados.campos_conflitantes.length > 0 ? `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #ffc107;">⚠️ Campos Conflitantes</h4>
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px;">
+                            ${dados.campos_conflitantes.map(conflito => `
+                                <div style="margin-bottom: 8px;">
+                                    <strong>${conflito.campo}:</strong> ${conflito.quantidade} valores diferentes
+                                    <div style="font-size: 12px; color: #856404;">
+                                        ${conflito.valores.join(', ')}
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
-                        ${dados.sugestao_mesclagem.dados_mesclados.observacao ? `
-                            <div style="margin-top: 10px;">
-                                <strong>Observações:</strong><br>
-                                <small>${dados.sugestao_mesclagem.dados_mesclados.observacao}</small>
+                    </div>
+                ` : ''}
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #007bff;">🔄 Dados após mesclagem (mais completos)</h4>
+                    <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px;">
+                        ${dados.dados_mesclados ? `
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 14px;">
+                                <div><strong>Nome:</strong> ${dados.dados_mesclados.nome || 'N/A'}</div>
+                                <div><strong>CPF:</strong> ${dados.dados_mesclados.cpf || 'N/A'}</div>
+                                <div><strong>Telefone:</strong> ${dados.dados_mesclados.telefone || 'N/A'}</div>
+                                <div><strong>E-mail:</strong> ${dados.dados_mesclados.email || 'N/A'}</div>
+                                <div><strong>Cidade:</strong> ${dados.dados_mesclados.cidade || 'N/A'}</div>
+                                <div><strong>Estado:</strong> ${dados.dados_mesclados.estado || 'N/A'}</div>
+                                <div><strong>Religião:</strong> ${dados.dados_mesclados.religiao || 'N/A'}</div>
+                                <div><strong>Nascimento:</strong> ${dados.dados_mesclados.nascimento || 'N/A'}</div>
+                                <div><strong>Indicação:</strong> ${dados.dados_mesclados.indicacao || 'N/A'}</div>
                             </div>
-                        ` : ''}
+                            ${dados.dados_mesclados.observacao ? `
+                                <div style="margin-top: 10px;">
+                                    <strong>Observações:</strong><br>
+                                    <small>${dados.dados_mesclados.observacao}</small>
+                                </div>
+                            ` : ''}
+                            <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 5px; font-size: 12px; color: #0066cc;">
+                                <strong>💡 Mesclagem Inteligente:</strong> Os dados foram combinados automaticamente para criar o registro mais completo possível, 
+                                preenchendo campos vazios com informações das outras pessoas e priorizando dados mais confiáveis.
+                            </div>
+                        ` : `
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 14px;">
+                                <div><strong>Nome:</strong> ${pessoaPrincipal.nome || 'N/A'}</div>
+                                <div><strong>CPF:</strong> ${pessoaPrincipal.cpf || 'N/A'}</div>
+                                <div><strong>Telefone:</strong> ${pessoaPrincipal.telefone || 'N/A'}</div>
+                                <div><strong>E-mail:</strong> ${pessoaPrincipal.email || 'N/A'}</div>
+                                <div><strong>Cidade:</strong> ${pessoaPrincipal.cidade || 'N/A'}</div>
+                                <div><strong>Estado:</strong> ${pessoaPrincipal.estado || 'N/A'}</div>
+                                <div><strong>Religião:</strong> ${pessoaPrincipal.religiao || 'N/A'}</div>
+                            </div>
+                        `}
                     </div>
                 </div>
                 
                 <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px;">
                     <strong>⚠️ Resumo da operação:</strong><br>
-                    • ${dados.sugestao_mesclagem.pessoas_secundarias.length} pessoa(s) será(ão) removida(s)<br>
-                    • ${dados.sugestao_mesclagem.total_frequencias_transferidas} frequência(s) será(ão) transferida(s)<br>
+                    • ${pessoasSecundarias.length} pessoa(s) será(ão) removida(s)<br>
+                    • ${pessoasSecundarias.reduce((total, p) => total + (p.total_frequencias || 0), 0)} frequência(s) será(ão) transferida(s)<br>
                     • Todos os dados serão preservados na pessoa principal<br>
                     • <strong style="color: #dc3545;">Esta operação não pode ser desfeita!</strong>
                 </div>
@@ -3262,7 +4407,7 @@
         async function confirmarMesclagem() {
             if (!mesclagem_atual) return;
             
-            const pessoasSecundarias = mesclagem_atual.sugestao_mesclagem.pessoas_secundarias;
+            const pessoasSecundarias = mesclagem_atual.pessoas.filter(p => p.id != mesclagem_atual.pessoa_principal_sugerida);
             const totalPessoas = pessoasSecundarias.length;
             
             // Verificar se há muitas pessoas para mesclar
@@ -3296,16 +4441,16 @@
                 progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
                 progressTimer.nextStep(timerId);
 
-                const response = await fetch('http://localhost:3000/api/duplicatas/mesclar', {
+                const response = await fetch('php/api/duplicatas.php/mesclar', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        pessoa_principal_id: mesclagem_atual.sugestao_mesclagem.pessoa_principal.id,
+                        pessoa_principal_id: mesclagem_atual.pessoa_principal_sugerida,
                         pessoas_secundarias_ids: pessoasSecundarias.map(p => p.id),
-                        dados_mesclados: mesclagem_atual.sugestao_mesclagem.dados_mesclados
+                        dados_mesclados: {}
                     })
                 });
                 
@@ -3458,7 +4603,7 @@
                 progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
                 progressTimer.nextStep(timerId);
                 
-                const response = await fetch('/api/pessoas', {
+                const response = await fetch('php/api/pessoas.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dadosPessoa)
@@ -3580,11 +4725,22 @@
         
         // Ocultar seções baseado no tipo de usuário
         if (user.tipo === 'geral') {
+            document.querySelector('button[onclick="showSection(\'voluntarios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'relatorios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
             document.querySelector('button[onclick="abrirBackup()"]').style.display = 'none';
-        } else if (user.tipo === 'responsavel') {
+        }
+        
+        // Controlar visibilidade do botão de relatório de voluntários
+        const btnRelatorioVoluntarios = document.getElementById('btnRelatorioVoluntarios');
+        if (btnRelatorioVoluntarios) {
+            if (user.tipo === 'administrador' || user.tipo === 'lider') {
+                btnRelatorioVoluntarios.style.display = 'inline-block';
+            } else {
+                btnRelatorioVoluntarios.style.display = 'none';
+            }
+        } else if (user.tipo === 'lider') {
             document.querySelector('button[onclick="showSection(\'usuarios\')"]').style.display = 'none';
             document.querySelector('button[onclick="showSection(\'duplicatas\')"]').style.display = 'none';
             document.querySelector('button[onclick="abrirBackup()"]').style.display = 'none';
@@ -3630,6 +4786,692 @@
                 selectCidade.appendChild(option);
             }
         }
+
+        // ==================== FUNÇÕES DE VOLUNTÁRIOS ====================
+
+        // Carregar lista de voluntários
+        async function carregarVoluntarios(busca = '') {
+            try {
+                const token = localStorage.getItem('token');
+                const url = busca ? 
+                    `php/api/voluntarios?busca=${encodeURIComponent(busca)}` : 
+                    'php/api/voluntarios';
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('Sessão expirada. Faça login novamente.');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    if (response.status === 403) {
+                        alert('Acesso negado. Apenas administradores e líderes podem gerenciar voluntários.');
+                        return;
+                    }
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                exibirListaVoluntarios(data.voluntarios || []);
+                
+            } catch (error) {
+                console.error('Erro ao carregar voluntários:', error);
+                document.getElementById('listaVoluntarios').innerHTML = 
+                    '<p style="color: red;">Erro ao carregar voluntários: ' + error.message + '</p>';
+            }
+        }
+
+        // Exibir lista de voluntários
+        function exibirListaVoluntarios(voluntarios) {
+            const container = document.getElementById('listaVoluntarios');
+            
+            if (voluntarios.length === 0) {
+                container.innerHTML = '<p>Nenhum voluntário encontrado.</p>';
+                return;
+            }
+            
+            let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            html += '<thead><tr style="background: #f8f9fa;">';
+            html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Nome</th>';
+            html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">CPF</th>';
+            html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">E-mail</th>';
+            html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Cidade/Estado</th>';
+            html += '<th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Ações</th>';
+            html += '</tr></thead><tbody>';
+            
+            voluntarios.forEach(voluntario => {
+                html += '<tr>';
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.nome}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.cpf || '-'}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.email || '-'}</td>`;
+                
+                let localizacao = '';
+                if (voluntario.cidade && voluntario.estado) {
+                    localizacao = `${voluntario.cidade}/${voluntario.estado}`;
+                } else if (voluntario.cidade) {
+                    localizacao = voluntario.cidade;
+                } else if (voluntario.estado) {
+                    localizacao = voluntario.estado;
+                } else {
+                    localizacao = '-';
+                }
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${localizacao}</td>`;
+                
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">';
+                html += `<button onclick="editarVoluntario(${voluntario.id})" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">✏️ Editar</button>`;
+                html += `<button onclick="excluirVoluntario(${voluntario.id}, '${voluntario.nome}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">🗑️ Excluir</button>`;
+                html += '</td>';
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        // Buscar voluntários
+        function buscarVoluntarios() {
+            const busca = document.getElementById('buscaVoluntarios').value.trim();
+            carregarVoluntarios(busca);
+        }
+
+        // Mostrar modal de novo voluntário
+        function mostrarModalNovoVoluntario() {
+            document.getElementById('modalNovoVoluntario').style.display = 'block';
+            document.getElementById('formNovoVoluntario').reset();
+            
+            // Resetar checkbox e campos de usuário
+            document.getElementById('criarUsuario').checked = true;
+            toggleCamposUsuario();
+            
+            // Event listener para checkbox
+            document.getElementById('criarUsuario').addEventListener('change', toggleCamposUsuario);
+            
+            // Aplicar máscara no CPF
+            const cpfInput = document.getElementById('voluntarioCpf');
+            cpfInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 11) {
+                    value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                    e.target.value = value;
+                }
+            });
+        }
+
+        // Controlar visibilidade dos campos de usuário
+        function toggleCamposUsuario() {
+            const checkbox = document.getElementById('criarUsuario');
+            const campos = document.getElementById('camposUsuario');
+            
+            if (checkbox.checked) {
+                campos.style.display = 'grid';
+            } else {
+                campos.style.display = 'none';
+            }
+        }
+
+        // Gerar senha aleatória
+        function gerarSenhaAleatoria() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let senha = '';
+            for (let i = 0; i < 8; i++) {
+                senha += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return senha;
+        }
+
+        // Fechar modal de novo voluntário
+        function fecharModalVoluntario() {
+            document.getElementById('modalNovoVoluntario').style.display = 'none';
+        }
+
+        // Cadastrar novo voluntário
+        document.getElementById('formNovoVoluntario').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const voluntarioData = {
+                nome: document.getElementById('voluntarioNome').value.trim(),
+                cpf: document.getElementById('voluntarioCpf').value.trim(),
+                data_nascimento: document.getElementById('voluntarioDataNascimento').value,
+                religiao: document.getElementById('voluntarioReligiao').value.trim(),
+                estado: document.getElementById('voluntarioEstado').value,
+                cidade: document.getElementById('voluntarioCidade').value.trim(),
+                email: document.getElementById('voluntarioEmail').value.trim()
+            };
+
+            // Adicionar dados de usuário se checkbox marcado
+            if (document.getElementById('criarUsuario').checked) {
+                let senha = document.getElementById('senhaInicial').value.trim();
+                if (!senha) {
+                    senha = gerarSenhaAleatoria();
+                }
+
+                voluntarioData.criar_usuario = true;
+                voluntarioData.usuario = {
+                    tipo: document.getElementById('tipoUsuario').value,
+                    senha: senha
+                };
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('php/api/voluntarios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(voluntarioData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let mensagem = '✅ Voluntário cadastrado com sucesso!';
+                    
+                    // Se um usuário foi criado, mostrar as credenciais
+                    if (data.usuario_criado) {
+                        mensagem += '\n\n👤 Usuário do sistema criado:';
+                        mensagem += '\n📧 Email: ' + data.usuario_criado.email;
+                        mensagem += '\n🔑 Senha: ' + data.usuario_criado.senha_inicial;
+                        mensagem += '\n👥 Tipo: ' + data.usuario_criado.tipo;
+                        mensagem += '\n\n⚠️ IMPORTANTE: Anote essas credenciais! O voluntário deverá trocar a senha no primeiro login.';
+                    }
+                    
+                    alert(mensagem);
+                    fecharModalVoluntario();
+                    carregarVoluntarios();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao cadastrar voluntário:', error);
+                alert('❌ Erro ao cadastrar voluntário: ' + error.message);
+            }
+        });
+
+        // Editar voluntário
+        async function editarVoluntario(id) {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/voluntarios/${id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const voluntario = await response.json();
+                
+                // Preencher formulário de edição
+                document.getElementById('editVoluntarioId').value = voluntario.id;
+                document.getElementById('editVoluntarioNome').value = voluntario.nome || '';
+                document.getElementById('editVoluntarioCpf').value = voluntario.cpf || '';
+                document.getElementById('editVoluntarioDataNascimento').value = voluntario.data_nascimento || '';
+                document.getElementById('editVoluntarioReligiao').value = voluntario.religiao || '';
+                document.getElementById('editVoluntarioEstado').value = voluntario.estado || '';
+                document.getElementById('editVoluntarioCidade').value = voluntario.cidade || '';
+                document.getElementById('editVoluntarioEmail').value = voluntario.email || '';
+                
+                // Mostrar modal
+                document.getElementById('modalEditarVoluntario').style.display = 'block';
+                
+                // Aplicar máscara no CPF
+                const cpfInput = document.getElementById('editVoluntarioCpf');
+                cpfInput.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                        value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                        e.target.value = value;
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar voluntário:', error);
+                alert('❌ Erro ao carregar dados do voluntário: ' + error.message);
+            }
+        }
+
+        // Fechar modal de editar voluntário
+        function fecharModalEditarVoluntario() {
+            document.getElementById('modalEditarVoluntario').style.display = 'none';
+        }
+
+        // Salvar alterações do voluntário
+        document.getElementById('formEditarVoluntario').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('editVoluntarioId').value;
+            const voluntarioData = {
+                nome: document.getElementById('editVoluntarioNome').value.trim(),
+                cpf: document.getElementById('editVoluntarioCpf').value.trim(),
+                data_nascimento: document.getElementById('editVoluntarioDataNascimento').value,
+                religiao: document.getElementById('editVoluntarioReligiao').value.trim(),
+                estado: document.getElementById('editVoluntarioEstado').value,
+                cidade: document.getElementById('editVoluntarioCidade').value.trim(),
+                email: document.getElementById('editVoluntarioEmail').value.trim()
+            };
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/voluntarios/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(voluntarioData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Voluntário atualizado com sucesso!');
+                    fecharModalEditarVoluntario();
+                    carregarVoluntarios();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao atualizar voluntário:', error);
+                alert('❌ Erro ao atualizar voluntário: ' + error.message);
+            }
+        });
+
+        // Excluir voluntário
+        async function excluirVoluntario(id, nome) {
+            if (!confirm(`Tem certeza que deseja excluir o voluntário "${nome}"?\n\nEsta ação não pode ser desfeita.`)) {
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/voluntarios/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Voluntário excluído com sucesso!');
+                    carregarVoluntarios();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao excluir voluntário:', error);
+                alert('❌ Erro ao excluir voluntário: ' + error.message);
+            }
+        }
+
+        // ========== FUNÇÕES DE FREQUÊNCIA DE VOLUNTÁRIOS ==========
+        
+        let voluntarioSelecionado = null;
+
+        // Buscar voluntário para frequência
+        async function buscarVoluntarioFrequencia() {
+            const termo = document.getElementById('buscaVoluntario').value.trim();
+            const resultado = document.getElementById('resultadoBuscaVoluntario');
+            
+            if (termo.length < 2) {
+                resultado.innerHTML = '<p style="color: #666;">Digite pelo menos 2 caracteres para buscar</p>';
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/voluntarios?busca=${encodeURIComponent(termo)}&limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.voluntarios && data.voluntarios.length > 0) {
+                    let html = '<div style="max-height: 200px; overflow-y: auto;">';
+                    data.voluntarios.forEach((voluntario, index) => {
+                        html += `
+                            <div class="voluntario-resultado" data-index="${index}" 
+                                 style="padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; cursor: pointer; background: white; border-radius: 4px;">
+                                <strong>${voluntario.nome}</strong><br>
+                                <small>CPF: ${voluntario.cpf || 'Não informado'} | Email: ${voluntario.email || 'Não informado'}</small>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    resultado.innerHTML = html;
+                    
+                    // Armazenar voluntários encontrados
+                    window.voluntariosEncontrados = data.voluntarios;
+                    
+                    // Adicionar event listeners
+                    document.querySelectorAll('.voluntario-resultado').forEach(div => {
+                        div.addEventListener('click', function() {
+                            const index = parseInt(this.dataset.index);
+                            selecionarVoluntarioFrequencia(index);
+                        });
+                        
+                        div.addEventListener('mouseover', function() {
+                            this.style.backgroundColor = '#f0f0f0';
+                        });
+                        
+                        div.addEventListener('mouseout', function() {
+                            this.style.backgroundColor = 'white';
+                        });
+                    });
+                } else {
+                    resultado.innerHTML = '<p style="color: #666;">Nenhum voluntário encontrado</p>';
+                }
+                
+            } catch (error) {
+                console.error('Erro ao buscar voluntários:', error);
+                resultado.innerHTML = '<p style="color: #dc3545;">❌ Erro ao buscar voluntários</p>';
+            }
+        }
+
+        // Selecionar voluntário para frequência
+        function selecionarVoluntarioFrequencia(index) {
+            if (!window.voluntariosEncontrados || !window.voluntariosEncontrados[index]) {
+                alert('Erro ao selecionar voluntário');
+                return;
+            }
+            
+            voluntarioSelecionado = window.voluntariosEncontrados[index];
+            
+            // Mostrar dados do voluntário selecionado
+            const dadosDiv = document.getElementById('dadosVoluntarioSelecionado');
+            dadosDiv.innerHTML = `
+                <strong>👤 ${voluntarioSelecionado.nome}</strong><br>
+                <small>CPF: ${voluntarioSelecionado.cpf || 'Não informado'} | Email: ${voluntarioSelecionado.email || 'Não informado'}</small>
+            `;
+            
+            // Mostrar formulário
+            document.getElementById('formularioFrequenciaVoluntario').style.display = 'block';
+            
+            // Limpar resultado da busca
+            document.getElementById('resultadoBuscaVoluntario').innerHTML = '';
+            document.getElementById('buscaVoluntario').value = voluntarioSelecionado.nome;
+            
+            // Definir data atual como padrão
+            document.getElementById('dataTrabalhoVoluntario').value = new Date().toISOString().split('T')[0];
+        }
+
+        // Registrar frequência de voluntário
+        async function registrarFrequenciaVoluntario() {
+            if (!voluntarioSelecionado) {
+                alert('Selecione um voluntário');
+                return;
+            }
+            
+            const dataTrabalho = document.getElementById('dataTrabalhoVoluntario').value;
+            const horaInicio = document.getElementById('horaInicioVoluntario').value;
+            const horaFim = document.getElementById('horaFimVoluntario').value;
+            const localInicio = document.getElementById('localInicioVoluntario').value;
+            const localFim = document.getElementById('localFimVoluntario').value;
+            const observacoes = document.getElementById('observacoesVoluntario').value;
+            
+            // Validações
+            if (!dataTrabalho) {
+                alert('Data do trabalho é obrigatória');
+                return;
+            }
+            
+            if (!horaInicio) {
+                alert('Hora de início é obrigatória');
+                return;
+            }
+            
+            if (!localInicio) {
+                alert('Local de início é obrigatório');
+                return;
+            }
+            
+            const frequenciaData = {
+                voluntario_id: voluntarioSelecionado.id,
+                data_trabalho: dataTrabalho,
+                hora_inicio: horaInicio,
+                hora_fim: horaFim || null,
+                local_inicio: localInicio,
+                local_fim: localFim || null,
+                observacoes: observacoes || null
+            };
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('php/api/frequencia_voluntarios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(frequenciaData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ Frequência registrada com sucesso!\n\nVoluntário: ${voluntarioSelecionado.nome}\nData: ${formatarDataMySQL(dataTrabalho)}\nLocal: ${localInicio}`);
+                    cancelarFrequenciaVoluntario();
+                    carregarFrequenciasVoluntarios();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao registrar frequência:', error);
+                alert('❌ Erro ao registrar frequência: ' + error.message);
+            }
+        }
+
+        // Cancelar registro de frequência
+        function cancelarFrequenciaVoluntario() {
+            voluntarioSelecionado = null;
+            document.getElementById('formularioFrequenciaVoluntario').style.display = 'none';
+            document.getElementById('buscaVoluntario').value = '';
+            document.getElementById('resultadoBuscaVoluntario').innerHTML = '';
+            
+            // Limpar formulário
+            document.getElementById('dataTrabalhoVoluntario').value = '';
+            document.getElementById('horaInicioVoluntario').value = '';
+            document.getElementById('horaFimVoluntario').value = '';
+            document.getElementById('localInicioVoluntario').value = '';
+            document.getElementById('localFimVoluntario').value = '';
+            document.getElementById('observacoesVoluntario').value = '';
+        }
+
+        // Carregar frequências de voluntários
+        async function carregarFrequenciasVoluntarios() {
+            const container = document.getElementById('listaFrequenciasVoluntarios');
+            container.innerHTML = '<p>Carregando frequências...</p>';
+            
+            try {
+                const token = localStorage.getItem('token');
+                let url = 'php/api/frequencia_voluntarios?limit=20';
+                
+                // Aplicar filtros se definidos
+                const dataInicio = document.getElementById('filtroDataInicioVoluntarios').value;
+                const dataFim = document.getElementById('filtroDataFimVoluntarios').value;
+                const local = document.getElementById('filtroLocalVoluntarios').value;
+                
+                if (dataInicio) url += `&data_inicio=${dataInicio}`;
+                if (dataFim) url += `&data_fim=${dataFim}`;
+                if (local) url += `&local_inicio=${encodeURIComponent(local)}`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.frequencias && data.frequencias.length > 0) {
+                    let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                    html += `
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Voluntário</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Data</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Horário</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Local Início</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Local Fim</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Lançado por</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    `;
+                    
+                    data.frequencias.forEach(freq => {
+                        html += '<tr>';
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;"><strong>${freq.voluntario_nome}</strong><br><small>${freq.voluntario_cpf || 'CPF não informado'}</small></td>`;
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;">${formatarDataMySQL(freq.data_trabalho)}</td>`;
+                        
+                        let horario = freq.hora_inicio;
+                        if (freq.hora_fim) {
+                            horario += ` - ${freq.hora_fim}`;
+                        }
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;">${horario}</td>`;
+                        
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;"><span style="background: #e8f5e8; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">${freq.local_inicio}</span></td>`;
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;">${freq.local_fim ? `<span style="background: #fff3cd; padding: 2px 6px; border-radius: 3px; font-size: 0.9em;">${freq.local_fim}</span>` : '-'}</td>`;
+                        html += `<td style="padding: 10px; border: 1px solid #ddd;"><small>${freq.lancado_por_nome}</small></td>`;
+                        
+                        html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">';
+                        html += `<button onclick="excluirFrequenciaVoluntario(${freq.id}, '${freq.voluntario_nome}', '${formatarDataMySQL(freq.data_trabalho)}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8em;">🗑️ Excluir</button>`;
+                        html += '</td>';
+                        html += '</tr>';
+                        
+                        // Adicionar linha de observações se houver
+                        if (freq.observacoes) {
+                            html += `<tr><td colspan="7" style="padding: 5px 10px; border: 1px solid #ddd; background: #f8f9fa; font-style: italic; font-size: 0.9em;"><strong>Obs:</strong> ${freq.observacoes}</td></tr>`;
+                        }
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    html += `<p style="margin-top: 10px; color: #666; font-size: 0.9em;">Total: ${data.total} frequência(s) encontrada(s)</p>`;
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p style="color: #666;">Nenhuma frequência encontrada</p>';
+                }
+                
+            } catch (error) {
+                console.error('Erro ao carregar frequências:', error);
+                container.innerHTML = '<p style="color: #dc3545;">❌ Erro ao carregar frequências</p>';
+            }
+        }
+
+        // Excluir frequência de voluntário
+        async function excluirFrequenciaVoluntario(id, nomeVoluntario, data) {
+            if (!confirm(`Tem certeza que deseja excluir a frequência?\n\nVoluntário: ${nomeVoluntario}\nData: ${data}\n\nEsta ação não pode ser desfeita.`)) {
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`php/api/frequencia_voluntarios/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Frequência excluída com sucesso!');
+                    carregarFrequenciasVoluntarios();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao excluir frequência:', error);
+                alert('❌ Erro ao excluir frequência: ' + error.message);
+            }
+        }
+
+        // Controlar visibilidade do botão de frequência de voluntários baseado nas permissões
+        function verificarPermissoesFrequenciaVoluntarios() {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const btnFrequenciaVoluntarios = document.getElementById('btnFrequenciaVoluntarios');
+            
+            if (user.tipo === 'administrador' || user.tipo === 'lider') {
+                btnFrequenciaVoluntarios.style.display = 'inline-block';
+            } else {
+                btnFrequenciaVoluntarios.style.display = 'none';
+            }
+        }
+
+        // Carregar voluntários para o filtro do relatório
+        async function carregarVoluntariosParaFiltro() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('php/api/voluntarios', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const voluntarios = data.voluntarios || [];
+                    
+                    const select = document.getElementById('filtroVoluntarioEspecifico');
+                    select.innerHTML = '<option value="">Todos os voluntários</option>';
+                    
+                    voluntarios.forEach(voluntario => {
+                        const option = document.createElement('option');
+                        option.value = voluntario.id;
+                        option.textContent = voluntario.nome;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar voluntários para filtro:', error);
+            }
+        }
+
+        // Inicializar frequências de voluntários quando a seção for mostrada
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar permissões ao carregar a página
+            verificarPermissoesFrequenciaVoluntarios();
+            
+            // Carregar voluntários para o filtro do relatório
+            carregarVoluntariosParaFiltro();
+            
+            // Override da função showSection para carregar frequências quando necessário
+            const originalShowSection = window.showSection;
+            window.showSection = function(sectionId) {
+                originalShowSection(sectionId);
+                
+                if (sectionId === 'frequencia_voluntarios') {
+                    carregarFrequenciasVoluntarios();
+                }
+            };
+        });
     </script>
 </body>
 </html>

@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Frequência</title>
+    <title>Login - Terra do Bugio</title>
+    
+    <!-- Favicon - Logo Terra do Bugio -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" href="imagem/terrabugio.jpg">
+    
     <link rel="stylesheet" href="css/style.css">
     <style>
         .login-container {
@@ -77,7 +83,10 @@
 </head>
 <body>
     <div class="login-container">
-        <h2>🔐 Login do Sistema</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="imagem/terrabugio.jpg" alt="Terra do Bugio" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 3px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 10px; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        </div>
+        <h2>🔐 Login Terra do Bugio</h2>
         
         <form class="login-form" id="loginForm">
             <div class="form-group">
@@ -108,21 +117,26 @@
             const senha = document.getElementById('senha').value;
             const errorDiv = document.getElementById('error');
             
-            // Usar API relativa para funcionar em produção
-            const apiUrl = window.location.hostname === 'localhost' 
-                ? 'http://localhost:3000/api' 
-                : '/api';
+            // Limpar erro anterior
+            errorDiv.textContent = '';
             
+            // Debug: mostrar dados sendo enviados
+            console.log('Enviando dados:', { email, password: senha });
+            
+            // Usar API PHP
             try {
-                const response = await fetch(`${apiUrl}/login`, {
+                const response = await fetch('php/api/auth', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, senha })
+                    body: JSON.stringify({ email, password: senha })
                 });
                 
+                console.log('Status da resposta:', response.status);
+                
                 const data = await response.json();
+                console.log('Dados recebidos:', data);
                 
                 if (response.ok) {
                     // Salvar token e dados do usuário

@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trocar Senha - Sistema de Frequência</title>
+    <title>Trocar Senha - Terra do Bugio</title>
+    
+    <!-- Favicon - Logo Terra do Bugio -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" href="imagem/terrabugio.jpg">
+    
     <style>
         * { box-sizing: border-box; }
         body { 
@@ -171,7 +177,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Trocar Senha</h1>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <img src="imagem/terrabugio.jpg" alt="Terra do Bugio" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #667eea; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            </div>
+            <h1>🔐 Trocar Senha - Terra do Bugio</h1>
             <p style="color: #666; margin: 0;">Sua senha foi resetada por um administrador</p>
         </div>
         
@@ -280,7 +289,7 @@
             submitBtn.textContent = 'Alterando...';
             
             try {
-                const response = await fetch('http://localhost:3000/api/usuarios/trocar-senha-obrigatoria', {
+                const response = await fetch('php/api/usuarios.php/trocar-senha-obrigatoria', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',

@@ -1,0 +1,19 @@
+<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Círculo de fundo -->
+  <circle cx="30" cy="30" r="28" fill="#2c3e50" stroke="#34495e" stroke-width="2"/>
+  
+  <!-- Terra/Montanha -->
+  <path d="M8 45 Q15 35 22 40 Q30 30 38 40 Q45 35 52 45 L52 52 Q30 50 8 52 Z" fill="#27ae60"/>
+  
+  <!-- Árvore/Vegetação -->
+  <circle cx="20" cy="38" r="4" fill="#229954"/>
+  <circle cx="40" cy="38" r="4" fill="#229954"/>
+  <circle cx="30" cy="35" r="5" fill="#229954"/>
+  
+  <!-- Sol/Luz -->
+  <circle cx="45" cy="15" r="6" fill="#f39c12"/>
+  <path d="M45 5 L45 8 M52 15 L49 15 M49.5 8.5 L47.8 10.2 M40.5 8.5 L42.2 10.2" stroke="#f39c12" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Texto TB (Terra do Bugio) -->
+  <text x="30" y="25" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">TB</text>
+</svg>
