@@ -7,9 +7,16 @@
     <title>Painel Terra do Bugio - Sistema de Recepção</title>
     
     <!-- Favicon - Logo Terra do Bugio -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="alternate icon" href="imagem/terrabugio.jpg">
+    <link rel="icon" type="image/jpeg" href="imagem/terrabugio.jpg">
+    <link rel="shortcut icon" type="image/jpeg" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="180x180" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="152x152" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="120x120" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="76x76" href="imagem/terrabugio.jpg">
     <link rel="apple-touch-icon" href="imagem/terrabugio.jpg">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="msapplication-TileColor" content="#2c3e50">
+    <meta name="msapplication-TileImage" content="imagem/terrabugio.jpg">
     
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -982,10 +989,11 @@
                         <div>
                             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Usuário:</label>
                             <select id="tipoUsuario" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <option value="geral">Geral</option>
-                                <option value="lider">Líder</option>
+                                <option value="geral">👤 Geral - Acesso básico ao sistema</option>
+                                <option value="lider">👥 Líder - Pode gerenciar frequências de voluntários</option>
+                                <option value="administrador" id="opcaoAdmin" style="display: none;">🔧 Administrador - Acesso completo ao sistema</option>
                             </select>
-                            <small style="color: #666;">Apenas administradores podem criar outros administradores</small>
+                            <small style="color: #666;" id="infoTipoUsuario">Selecione o nível de acesso do usuário</small>
                         </div>
                         
                         <div>
@@ -1125,6 +1133,222 @@
     </div>
 
     <script>
+        // FUNÇÕES ESSENCIAIS DEFINIDAS PRIMEIRO (antes de qualquer verificação)
+        
+        // Função para mostrar seções (global) - DEVE estar disponível imediatamente
+        window.showSection = function(sectionId) {
+            try {
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+                
+                document.getElementById(sectionId).classList.add('active');
+                if (event && event.target) {
+                    event.target.classList.add('active');
+                }
+                
+                // Carregar dados específicos da seção (se usuário estiver logado)
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                if (user.id) {
+                    if (sectionId === 'usuarios' && user.tipo === 'administrador') {
+                        carregarUsuarios();
+                    } else if (sectionId === 'voluntarios' && (user.tipo === 'administrador' || user.tipo === 'lider')) {
+                        carregarVoluntarios();
+                    } else if (sectionId === 'perfil') {
+                        carregarPerfil();
+                    } else if (sectionId === 'duplicatas' && user.tipo === 'administrador') {
+                        console.log('Seção de duplicatas carregada para administrador');
+                    } else if (sectionId === 'frequencia_voluntarios') {
+                        carregarFrequenciasVoluntarios();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro em showSection:', error);
+            }
+        };
+        
+        // Função de logout (global) - DEVE estar disponível imediatamente
+        window.logout = function() {
+            try {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Erro em logout:', error);
+                window.location.href = 'login.html';
+            }
+        };
+        
+        // Função para carregar voluntários para filtro (global)
+        window.carregarVoluntariosParaFiltro = async function() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return; // Não carregar se não estiver autenticado
+                
+                const response = await fetch('/api/voluntarios', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const voluntarios = data.voluntarios || [];
+                    
+                    const select = document.getElementById('filtroVoluntarioEspecifico');
+                    if (select) {
+                        select.innerHTML = '<option value="">Todos os voluntários</option>';
+                        
+                        voluntarios.forEach(voluntario => {
+                            const option = document.createElement('option');
+                            option.value = voluntario.id;
+                            option.textContent = voluntario.nome;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar voluntários para filtro:', error);
+            }
+        };
+        
+        // Função para carregar usuários (global)
+        window.carregarUsuarios = async function() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                
+                console.log('Carregando usuários...');
+                const response = await fetch('/api/usuarios', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const usuarios = data.usuarios || [];
+                    
+                    const container = document.getElementById('listaUsuarios');
+                    if (container) {
+                        if (usuarios.length === 0) {
+                            container.innerHTML = '<p>Nenhum usuário encontrado.</p>';
+                        } else {
+                            container.innerHTML = usuarios.map(usuario => `
+                                <div class="usuario-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                                    <h4>${usuario.nome}</h4>
+                                    <p><strong>Email:</strong> ${usuario.email}</p>
+                                    <p><strong>Tipo:</strong> ${usuario.tipo}</p>
+                                    <p><strong>Status:</strong> ${usuario.ativo ? 'Ativo' : 'Inativo'}</p>
+                                    <button onclick="editarTipoUsuario(${usuario.id}, '${usuario.tipo}')" style="margin-right: 10px;">Editar Tipo</button>
+                                    <button onclick="resetarSenhaUsuario(${usuario.id})" style="margin-right: 10px;">Reset Senha</button>
+                                    <button onclick="toggleStatusUsuario(${usuario.id}, ${usuario.ativo})">${usuario.ativo ? 'Desativar' : 'Ativar'}</button>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                } else {
+                    console.error('Erro ao carregar usuários:', response.status);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+            }
+        };
+        
+        // Função para carregar voluntários (global)
+        window.carregarVoluntarios = async function(busca = '') {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                
+                const url = busca ? `/api/voluntarios?busca=${encodeURIComponent(busca)}` : '/api/voluntarios';
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const voluntarios = data.voluntarios || [];
+                    
+                    const container = document.getElementById('listaVoluntarios');
+                    if (container) {
+                        if (voluntarios.length === 0) {
+                            container.innerHTML = '<p>Nenhum voluntário encontrado.</p>';
+                        } else {
+                            container.innerHTML = voluntarios.map(voluntario => `
+                                <div class="voluntario-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                                    <h4>${voluntario.nome}</h4>
+                                    <p><strong>Email:</strong> ${voluntario.email || 'Não informado'}</p>
+                                    <p><strong>CPF:</strong> ${voluntario.cpf || 'Não informado'}</p>
+                                    <p><strong>Cidade:</strong> ${voluntario.cidade || 'Não informado'}</p>
+                                    <button onclick="editarVoluntario(${voluntario.id})">Editar</button>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                } else {
+                    console.error('Erro ao carregar voluntários:', response.status);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar voluntários:', error);
+            }
+        };
+        
+        // Função para carregar perfil (global)
+        window.carregarPerfil = function() {
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const nomeElement = document.getElementById('perfilNome');
+                const emailElement = document.getElementById('perfilEmail');
+                const tipoElement = document.getElementById('perfilTipo');
+                
+                if (nomeElement) nomeElement.value = user.nome || '';
+                if (emailElement) emailElement.value = user.email || '';
+                if (tipoElement) tipoElement.value = user.tipo ? user.tipo.toUpperCase() : '';
+            } catch (error) {
+                console.error('Erro ao carregar perfil:', error);
+            }
+        };
+        
+        // Função para carregar frequências de voluntários (global)
+        window.carregarFrequenciasVoluntarios = async function() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                
+                const container = document.getElementById('listaFrequenciasVoluntarios');
+                if (container) {
+                    container.innerHTML = '<p>Carregando frequências...</p>';
+                    
+                    const response = await fetch('/api/frequencia_voluntarios?limit=20', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const frequencias = data.frequencias || [];
+                        
+                        if (frequencias.length === 0) {
+                            container.innerHTML = '<p>Nenhuma frequência encontrada.</p>';
+                        } else {
+                            container.innerHTML = frequencias.map(freq => `
+                                <div class="frequencia-item" style="border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                                    <strong>${freq.voluntario_nome}</strong> - ${freq.data_trabalho}
+                                    <br>Horário: ${freq.hora_inicio} às ${freq.hora_fim || 'Em andamento'}
+                                    <br>Local: ${freq.local_inicio}
+                                </div>
+                            `).join('');
+                        }
+                    } else {
+                        container.innerHTML = '<p>Erro ao carregar frequências.</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar frequências de voluntários:', error);
+                const container = document.getElementById('listaFrequenciasVoluntarios');
+                if (container) {
+                    container.innerHTML = '<p>Erro ao carregar frequências.</p>';
+                }
+            }
+        };
+        
         // Variáveis globais
         let token = localStorage.getItem('token');
         let user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1199,41 +1423,53 @@
             }
         }
 
-        // Verificar autenticação
-        if (!token || !user.id) {
-            window.location.href = 'login.html';
-        }
-        
-        // Verificar se precisa trocar senha
-        if (user.deve_trocar_senha) {
-            window.location.href = 'trocar-senha.html';
+        // Verificar autenticação e executar resto do código apenas se válido
+        if (token && user && user.id) {
+            // Verificar se precisa trocar senha (converter para boolean se necessário)
+            const deveTrocarSenha = user.deve_trocar_senha === 1 || user.deve_trocar_senha === '1' || user.deve_trocar_senha === true;
+            if (deveTrocarSenha) {
+                console.log('Redirecionando para troca de senha obrigatória');
+                window.location.href = 'trocar-senha.html';
+            } else {
+                // Usuário autenticado e não precisa trocar senha - continuar execução normal
+
+        // Verificar permissões para frequência de voluntários após autenticação
+        try {
+            const btnFrequenciaVoluntarios = document.getElementById('btnFrequenciaVoluntarios');
+            if (btnFrequenciaVoluntarios) {
+                if (user.tipo === 'administrador' || user.tipo === 'lider') {
+                    btnFrequenciaVoluntarios.style.display = 'inline-block';
+                    console.log('Botão de frequência de voluntários habilitado para:', user.tipo);
+                } else {
+                    btnFrequenciaVoluntarios.style.display = 'none';
+                    console.log('Botão de frequência de voluntários oculto para:', user.tipo);
+                }
+            } else {
+                console.warn('Elemento btnFrequenciaVoluntarios não encontrado');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar permissões de frequência de voluntários:', error);
         }
 
         // Mostrar info do usuário
-        document.getElementById('userInfo').textContent = `${user.nome} (${user.tipo})`;
+        try {
+            document.getElementById('userInfo').textContent = `${user.nome || 'Usuário'} (${user.tipo || 'N/A'})`;
+        } catch (error) {
+            console.error('Erro ao mostrar info do usuário:', error);
+            document.getElementById('userInfo').textContent = 'Usuário';
+        }
 
         // Definir data atual
-        document.getElementById('dataFrequencia').value = new Date().toISOString().split('T')[0];
-
-        // Função para mostrar seções
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-            
-            document.getElementById(sectionId).classList.add('active');
-            event.target.classList.add('active');
-            
-            if (sectionId === 'usuarios' && user.tipo === 'administrador') {
-                carregarUsuarios();
-            } else if (sectionId === 'voluntarios' && (user.tipo === 'administrador' || user.tipo === 'lider')) {
-                carregarVoluntarios();
-            } else if (sectionId === 'perfil') {
-                carregarPerfil();
-            } else if (sectionId === 'duplicatas' && user.tipo === 'administrador') {
-                // Seção de duplicatas carregada, mas análise só executa quando usuário clicar
-                console.log('Seção de duplicatas carregada para administrador');
+        try {
+            const dataElement = document.getElementById('dataFrequencia');
+            if (dataElement) {
+                dataElement.value = new Date().toISOString().split('T')[0];
             }
+        } catch (error) {
+            console.error('Erro ao definir data atual:', error);
         }
+
+        // Função showSection já definida no início do script - removendo duplicata
 
         // Buscar pessoas
         let timeoutBusca;
@@ -1270,7 +1506,7 @@
             resultado.innerHTML = '<p style="padding: 10px; color: #666;">Buscando...</p>';
             
             try {
-                const url = `php/api/pessoas.php?busca=${encodeURIComponent(termo)}`;
+                const url = `/api/pessoas?busca=${encodeURIComponent(termo)}`;
                 console.log('URL:', url);
                 console.log('Enviando header Authorization:', `Bearer ${token.substring(0, 30)}...`);
                 
@@ -1434,7 +1670,7 @@
             setButtonLoading(button, true);
             
             try {
-                const response = await fetch('php/api/frequencias.php', {
+                const response = await fetch('/api/frequencias', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -1535,7 +1771,7 @@
             const dataFim = document.getElementById('dataFim').value;
             const tipo = document.getElementById('filtroTipo').value;
             
-            let url = 'php/api/frequencias.php?';
+            let url = '/api/frequencias?';
             if (dataInicio) url += `dataInicio=${dataInicio}&`;
             if (dataFim) url += `dataFim=${dataFim}&`;
             if (tipo) url += `tipo=${tipo}&`;
@@ -1669,7 +1905,7 @@
             document.getElementById('filtrosVoluntarios').style.display = 'none';
             
             try {
-                const response = await fetch('php/api/frequencias.php', {
+                const response = await fetch('/api/frequencias', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -1796,7 +2032,7 @@
                 const dataFim = document.getElementById('dataFim').value;
                 const tipo = document.getElementById('filtroTipo').value;
                 
-                let url = 'php/api/frequencias.php?';
+                let url = '/api/frequencias?';
                 if (dataInicio) url += `dataInicio=${dataInicio}&`;
                 if (dataFim) url += `dataFim=${dataFim}&`;
                 if (tipo) url += `tipo=${tipo}&`;
@@ -1979,7 +2215,7 @@
                 const dataFim = document.getElementById('dataFim').value;
                 const tipo = document.getElementById('filtroTipo').value;
                 
-                let url = 'php/api/frequencias.php?';
+                let url = '/api/frequencias?';
                 if (dataInicio) url += `dataInicio=${dataInicio}&`;
                 if (dataFim) url += `dataFim=${dataFim}&`;
                 if (tipo) url += `tipo=${tipo}&`;
@@ -2227,7 +2463,7 @@
             // Ocultar filtros específicos de voluntários
             document.getElementById('filtrosVoluntarios').style.display = 'none';
             try {
-                const response = await fetch('php/api/pessoas.php', {
+                const response = await fetch('/api/pessoas', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -2457,7 +2693,7 @@
                 }
                 
                 // Construir URL com filtros
-                let url = 'php/api/frequencia_voluntarios?limit=1000';
+                let url = '/api/frequencia_voluntarios?limit=1000';
                 if (dataInicioFinal) url += `&data_inicio=${dataInicioFinal}`;
                 if (dataFimFinal) url += `&data_fim=${dataFimFinal}`;
                 if (localFiltro) url += `&local_inicio=${encodeURIComponent(localFiltro)}`;
@@ -3070,7 +3306,7 @@
         async function carregarUsuarios() {
             try {
                 console.log('Carregando usuários...');
-                const response = await fetch('php/api/usuarios', {
+                const response = await fetch('/api/usuarios', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -3163,7 +3399,7 @@
         async function carregarVoluntariosParaUsuario() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('php/api/voluntarios', {
+                const response = await fetch('/api/voluntarios', {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -3289,7 +3525,7 @@
 
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/usuarios/${usuarioEditandoTipo.id}`, {
+                const response = await fetch(`/api/usuarios/${usuarioEditandoTipo.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -3390,7 +3626,7 @@
             }
             
             // Criar usuário
-            fetch('php/api/usuarios', {
+            fetch('/api/usuarios', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
@@ -3496,7 +3732,7 @@
             }
             
             try {
-                const response = await fetch(`php/api/usuarios/${usuarioId}/reset-senha`, {
+                const response = await fetch(`/api/usuarios/${usuarioId}/reset-senha`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -3562,7 +3798,7 @@
             
             try {
                 // Primeiro, buscar os dados atuais do usuário
-                const responseGet = await fetch(`php/api/usuarios`, {
+                const responseGet = await fetch(`/api/usuarios`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -3575,7 +3811,7 @@
                 }
                 
                 // Atualizar apenas o status
-                const response = await fetch(`php/api/usuarios/${usuarioId}`, {
+                const response = await fetch(`/api/usuarios/${usuarioId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -3655,7 +3891,7 @@
             };
             
             try {
-                const response = await fetch(`php/api/pessoas.php/${pessoaSelecionada.id}`, {
+                const response = await fetch(`/api/pessoas/${pessoaSelecionada.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -3717,17 +3953,13 @@
             }
         }
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
-        }
+        // Função logout já definida no início do script - removendo duplicata
 
         // Testar conexão inicial
         async function testarConexao() {
             try {
                 console.log('Testando conexão com servidor...');
-                const response = await fetch('php/api/pessoas.php?busca=test');
+                const response = await fetch('/api/pessoas?busca=test');
                 console.log('Teste de conexão - Status:', response.status);
                 
                 if (response.ok) {
@@ -3778,7 +4010,7 @@
             }
             
             try {
-                const response = await fetch('php/api/usuarios/perfil', {
+                const response = await fetch('/api/usuarios/perfil', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -3877,7 +4109,7 @@
                 const nome = document.getElementById('perfilNome').value.trim();
                 const email = document.getElementById('perfilEmail').value.trim();
                 
-                const response = await fetch('php/api/usuarios/perfil', {
+                const response = await fetch('/api/usuarios/perfil', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -3940,7 +4172,7 @@
         // Mostrar estatísticas de performance
         async function mostrarEstatisticas() {
             try {
-                const response = await fetch('php/api/duplicatas.php/stats', {
+                const response = await fetch('/api/duplicatas/stats', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -4054,7 +4286,7 @@
                 
                 console.log('Iniciando análise de duplicatas com threshold:', threshold);
                 
-                const response = await fetch(`php/api/duplicatas.php?threshold=${threshold}`, {
+                const response = await fetch(`/api/duplicatas?threshold=${threshold}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -4251,7 +4483,7 @@
             }
             
             try {
-                const response = await fetch('php/api/duplicatas.php/cache', {
+                const response = await fetch('/api/duplicatas/cache', {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -4273,7 +4505,7 @@
         // Visualizar detalhes de um grupo
         async function visualizarGrupo(grupoId, pessoaIds) {
             try {
-                const response = await fetch(`php/api/duplicatas.php/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
+                const response = await fetch(`/api/duplicatas/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -4441,7 +4673,7 @@
                 progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
                 progressTimer.nextStep(timerId);
 
-                const response = await fetch('php/api/duplicatas.php/mesclar', {
+                const response = await fetch('/api/duplicatas/mesclar', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json; charset=utf-8',
@@ -4603,7 +4835,7 @@
                 progressTimer.update(timerId, { message: 'Enviando dados para o servidor...' });
                 progressTimer.nextStep(timerId);
                 
-                const response = await fetch('php/api/pessoas.php', {
+                const response = await fetch('/api/pessoas', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dadosPessoa)
@@ -4794,8 +5026,8 @@
             try {
                 const token = localStorage.getItem('token');
                 const url = busca ? 
-                    `php/api/voluntarios?busca=${encodeURIComponent(busca)}` : 
-                    'php/api/voluntarios';
+                    `/api/voluntarios?busca=${encodeURIComponent(busca)}` : 
+                    '/api/voluntarios';
                 
                 const response = await fetch(url, {
                     headers: {
@@ -4888,6 +5120,21 @@
             document.getElementById('criarUsuario').checked = true;
             toggleCamposUsuario();
             
+            // Verificar se o usuário atual é administrador para mostrar opção de admin
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const opcaoAdmin = document.getElementById('opcaoAdmin');
+            const infoTipoUsuario = document.getElementById('infoTipoUsuario');
+            
+            if (user.tipo === 'administrador') {
+                opcaoAdmin.style.display = 'block';
+                infoTipoUsuario.textContent = 'Como administrador, você pode criar usuários de todos os tipos';
+                infoTipoUsuario.style.color = '#28a745';
+            } else {
+                opcaoAdmin.style.display = 'none';
+                infoTipoUsuario.textContent = 'Você pode criar usuários do tipo Geral e Líder';
+                infoTipoUsuario.style.color = '#666';
+            }
+            
             // Event listener para checkbox
             document.getElementById('criarUsuario').addEventListener('change', toggleCamposUsuario);
             
@@ -4959,7 +5206,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('php/api/voluntarios', {
+                const response = await fetch('/api/voluntarios', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -4999,7 +5246,7 @@
         async function editarVoluntario(id) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/voluntarios/${id}`, {
+                const response = await fetch(`/api/voluntarios/${id}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -5062,7 +5309,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/voluntarios/${id}`, {
+                const response = await fetch(`/api/voluntarios/${id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5095,7 +5342,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/voluntarios/${id}`, {
+                const response = await fetch(`/api/voluntarios/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -5133,7 +5380,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/voluntarios?busca=${encodeURIComponent(termo)}&limit=10`, {
+                const response = await fetch(`/api/voluntarios?busca=${encodeURIComponent(termo)}&limit=10`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -5256,7 +5503,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('php/api/frequencia_voluntarios', {
+                const response = await fetch('/api/frequencia_voluntarios', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -5304,7 +5551,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                let url = 'php/api/frequencia_voluntarios?limit=20';
+                let url = '/api/frequencia_voluntarios?limit=20';
                 
                 // Aplicar filtros se definidos
                 const dataInicio = document.getElementById('filtroDataInicioVoluntarios').value;
@@ -5391,7 +5638,7 @@
             
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`php/api/frequencia_voluntarios/${id}`, {
+                const response = await fetch(`/api/frequencia_voluntarios/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -5413,64 +5660,21 @@
             }
         }
 
-        // Controlar visibilidade do botão de frequência de voluntários baseado nas permissões
-        function verificarPermissoesFrequenciaVoluntarios() {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const btnFrequenciaVoluntarios = document.getElementById('btnFrequenciaVoluntarios');
-            
-            if (user.tipo === 'administrador' || user.tipo === 'lider') {
-                btnFrequenciaVoluntarios.style.display = 'inline-block';
-            } else {
-                btnFrequenciaVoluntarios.style.display = 'none';
-            }
-        }
+        // Função removida - verificação de permissões agora é feita inline após autenticação
 
-        // Carregar voluntários para o filtro do relatório
-        async function carregarVoluntariosParaFiltro() {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('php/api/voluntarios', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const voluntarios = data.voluntarios || [];
-                    
-                    const select = document.getElementById('filtroVoluntarioEspecifico');
-                    select.innerHTML = '<option value="">Todos os voluntários</option>';
-                    
-                    voluntarios.forEach(voluntario => {
-                        const option = document.createElement('option');
-                        option.value = voluntario.id;
-                        option.textContent = voluntario.nome;
-                        select.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Erro ao carregar voluntários para filtro:', error);
-            }
+        // Função carregarVoluntariosParaFiltro já definida no início do script - removendo duplicata
+
+            } // Fim do else (usuário autenticado e não precisa trocar senha)
+        } else {
+            // Usuário não autenticado - redirecionar para login
+            console.log('Redirecionando para login - Token ou usuário inválido');
+            window.location.href = 'login.html';
         }
 
         // Inicializar frequências de voluntários quando a seção for mostrada
         document.addEventListener('DOMContentLoaded', function() {
-            // Verificar permissões ao carregar a página
-            verificarPermissoesFrequenciaVoluntarios();
-            
             // Carregar voluntários para o filtro do relatório
             carregarVoluntariosParaFiltro();
-            
-            // Override da função showSection para carregar frequências quando necessário
-            const originalShowSection = window.showSection;
-            window.showSection = function(sectionId) {
-                originalShowSection(sectionId);
-                
-                if (sectionId === 'frequencia_voluntarios') {
-                    carregarFrequenciasVoluntarios();
-                }
-            };
         });
     </script>
 </body>

@@ -7,9 +7,16 @@
     <title>Login - Terra do Bugio</title>
     
     <!-- Favicon - Logo Terra do Bugio -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="alternate icon" href="imagem/terrabugio.jpg">
+    <link rel="icon" type="image/jpeg" href="imagem/terrabugio.jpg">
+    <link rel="shortcut icon" type="image/jpeg" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="180x180" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="152x152" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="120x120" href="imagem/terrabugio.jpg">
+    <link rel="apple-touch-icon" sizes="76x76" href="imagem/terrabugio.jpg">
     <link rel="apple-touch-icon" href="imagem/terrabugio.jpg">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="msapplication-TileColor" content="#2c3e50">
+    <meta name="msapplication-TileImage" content="imagem/terrabugio.jpg">
     
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -125,7 +132,7 @@
             
             // Usar API PHP
             try {
-                const response = await fetch('php/api/auth', {
+                const response = await fetch('/api/auth', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

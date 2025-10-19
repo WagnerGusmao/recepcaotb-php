@@ -334,6 +334,8 @@ function handleEditarPerfil($auth) {
     
     $nome = trim($input['nome'] ?? '');
     $email = trim($input['email'] ?? '');
+    $senhaAtual = $input['senhaAtual'] ?? '';
+    $novaSenha = $input['novaSenha'] ?? '';
     
     if (empty($nome) || empty($email)) {
         http_response_code(400);
@@ -353,20 +355,73 @@ function handleEditarPerfil($auth) {
         return;
     }
     
-    $updated = db()->execute(
-        "UPDATE usuarios SET nome = ?, email = ? WHERE id = ?",
-        [$nome, $email, $user['id']]
-    );
+    // Se está tentando alterar senha, validar
+    $alterarSenha = !empty($senhaAtual) && !empty($novaSenha);
     
-    if ($updated > 0) {
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Perfil atualizado com sucesso'
-        ]);
+    if ($alterarSenha) {
+        // Buscar dados atuais do usuário para verificar senha
+        $usuarioAtual = db()->fetchOne(
+            "SELECT senha FROM usuarios WHERE id = ?",
+            [$user['id']]
+        );
+        
+        if (!$usuarioAtual) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Usuário não encontrado']);
+            return;
+        }
+        
+        // Verificar senha atual
+        if (!password_verify($senhaAtual, $usuarioAtual['senha'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Senha atual incorreta']);
+            return;
+        }
+        
+        // Validar nova senha
+        if (strlen($novaSenha) < 4) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Nova senha deve ter pelo menos 4 caracteres']);
+            return;
+        }
+        
+        // Atualizar perfil com nova senha
+        $senhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
+        $updated = db()->execute(
+            "UPDATE usuarios SET nome = ?, email = ?, senha = ?, deve_trocar_senha = 0 WHERE id = ?",
+            [$nome, $email, $senhaHash, $user['id']]
+        );
+        
+        if ($updated > 0) {
+            // Invalidar outras sessões por segurança
+            db()->execute("DELETE FROM sessoes WHERE usuario_id = ?", [$user['id']]);
+            
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Perfil e senha atualizados com sucesso'
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao atualizar perfil e senha']);
+        }
     } else {
-        http_response_code(500);
-        echo json_encode(['error' => 'Falha ao atualizar perfil']);
+        // Atualizar apenas perfil (sem senha)
+        $updated = db()->execute(
+            "UPDATE usuarios SET nome = ?, email = ? WHERE id = ?",
+            [$nome, $email, $user['id']]
+        );
+        
+        if ($updated > 0) {
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Perfil atualizado com sucesso'
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Falha ao atualizar perfil']);
+        }
     }
 }
 

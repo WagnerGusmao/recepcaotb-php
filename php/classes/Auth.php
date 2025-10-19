@@ -75,10 +75,11 @@ class Auth {
             // Criar sessão no banco
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
             $ipAddress = $this->getClientIP();
+            $sessionId = uniqid('sess_', true);
             
-            $stmt = $this->db->prepare("INSERT INTO sessoes (usuario_id, token, expires_at, user_agent, ip_address, created_at) 
-                                       VALUES (?, ?, ?, ?, ?, NOW())");
-            $stmt->execute([$user['id'], $token, $expiresAt, $userAgent, $ipAddress]);
+            $stmt = $this->db->prepare("INSERT INTO sessoes (session_id, usuario_id, token, expires_at, user_agent, ip_address, created_at) 
+                                       VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([$sessionId, $user['id'], $token, $expiresAt, $userAgent, $ipAddress]);
             
             return [
                 'success' => true,

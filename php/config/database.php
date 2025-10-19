@@ -16,12 +16,15 @@ class Database {
         // Configurar timezone do PHP para São Paulo
         date_default_timezone_set('America/Sao_Paulo');
         
-        // Configuração direta para teste (sem .env)
-        $this->host = 'localhost';
-        $this->dbname = 'recepcaotb';
-        $this->username = 'root';
-        $this->password = ''; // Sem senha (padrão XAMPP)
-        $this->charset = 'utf8mb4';
+        // Carregar variáveis de ambiente
+        $this->loadEnv();
+        
+        // Configuração do banco (produção ou desenvolvimento)
+        $this->host = $_ENV['DB_HOST'] ?? 'localhost';
+        $this->dbname = $_ENV['DB_NAME'] ?? 'recepcaotb';
+        $this->username = $_ENV['DB_USER'] ?? 'root';
+        $this->password = $_ENV['DB_PASS'] ?? '';
+        $this->charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
     }
     
     /**

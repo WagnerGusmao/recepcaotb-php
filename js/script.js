@@ -492,21 +492,19 @@ class SistemaFrequencia {
             console.warn('Elemento #buscaPessoa não encontrado na página');
         }
 
-        // Verificar e configurar botão de marcar frequência
+        // Verificar e configurar botão de marcar frequência (opcional)
         const btnMarcarFrequencia = document.getElementById('marcarFrequencia');
         if (btnMarcarFrequencia) {
             btnMarcarFrequencia.addEventListener('click', () => this.marcarFrequencia());
-        } else {
-            console.warn('Elemento #marcarFrequencia não encontrado na página');
         }
+        // Nota: botão usa onclick diretamente no HTML, não precisa de event listener adicional
 
-        // Verificar e configurar botão de atualizar pessoa
+        // Verificar e configurar botão de atualizar pessoa (opcional)
         const btnAtualizarPessoa = document.getElementById('atualizarPessoa');
         if (btnAtualizarPessoa) {
             btnAtualizarPessoa.addEventListener('click', () => this.atualizarPessoa());
-        } else {
-            console.warn('Elemento #atualizarPessoa não encontrado na página');
         }
+        // Nota: botão usa onclick diretamente no HTML, não precisa de event listener adicional
 
 
 
@@ -2040,5 +2038,7 @@ class SistemaFrequencia {
     }
 }
 
-// Inicializar sistema
-const sistema = new SistemaFrequencia();
+// Inicializar sistema quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    const sistema = new SistemaFrequencia();
+});
