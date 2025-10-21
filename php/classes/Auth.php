@@ -16,8 +16,7 @@ class Auth {
     private $tokenExpiration;
     
     public function __construct() {
-        $database = new Database();
-        $this->db = $database->connect();
+        $this->db = db()->connect();
         $this->jwtSecret = $_ENV['JWT_SECRET'] ?? 'sua_chave_secreta_muito_segura';
         $this->tokenExpiration = $_ENV['JWT_EXPIRATION'] ?? '24h';
     }
