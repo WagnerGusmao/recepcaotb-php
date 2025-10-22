@@ -2,7 +2,14 @@ node_modules/
 php/vendor/
 *.log
 .env
+.env.production
 .DS_Store
 backend/frequencia.db
 *.tmp
 php/logs/
+php/backups/
+backups/*.sql
+exports/*.sql
+CREDENCIAIS_PRODUCAO.md
+recepcaotb_hostinger.zip
+deploy_temp/

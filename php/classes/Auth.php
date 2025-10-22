@@ -25,9 +25,30 @@ class Auth {
      * Realiza o login do usuário
      */
     public function login($email, $senha) {
+        // Inicializar Rate Limiter
+        require_once __DIR__ . '/RateLimiter.php';
+        
+        $rateLimiter = new RateLimiter(5, 15); // 5 tentativas, 15 minutos
+        $key = 'login:' . $this->getClientIP() . ':' . $email;
+        
+        // Verificar rate limit ANTES de qualquer processamento
+        if ($rateLimiter->tooManyAttempts($key)) {
+            $availableIn = $rateLimiter->availableIn($key);
+            $minutes = ceil($availableIn / 60);
+            
+            return [
+                'success' => false,
+                'error' => "Muitas tentativas de login. Tente novamente em $minutes minutos.",
+                'code' => 'RATE_LIMIT_EXCEEDED',
+                'retry_after' => $availableIn,
+                'retries_left' => 0
+            ];
+        }
+        
         try {
             // Validação básica
             if (empty($email) || empty($senha)) {
+                $rateLimiter->hit($key); // Registrar tentativa falhada
                 return [
                     'success' => false,
                     'error' => 'Email e senha são obrigatórios',
@@ -41,21 +62,28 @@ class Auth {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$user) {
+                $rateLimiter->hit($key); // Registrar tentativa falhada
                 return [
                     'success' => false,
                     'error' => 'Credenciais inválidas',
-                    'code' => 'INVALID_CREDENTIALS'
+                    'code' => 'INVALID_CREDENTIALS',
+                    'retries_left' => $rateLimiter->retriesLeft($key)
                 ];
             }
             
             // Verificar senha
             if (!password_verify($senha, $user['senha'])) {
+                $rateLimiter->hit($key); // Registrar tentativa falhada
                 return [
                     'success' => false,
                     'error' => 'Credenciais inválidas',
-                    'code' => 'INVALID_CREDENTIALS'
+                    'code' => 'INVALID_CREDENTIALS',
+                    'retries_left' => $rateLimiter->retriesLeft($key)
                 ];
             }
+            
+            // Login bem-sucedido - limpar rate limit
+            $rateLimiter->clear($key);
             
             // Gerar token JWT
             $payload = [
@@ -179,7 +207,6 @@ class Auth {
                     'nome' => $sessionData['nome'],
                     'email' => $sessionData['email'],
                     'tipo' => $sessionData['tipo'],
-                    'senha' => $sessionData['senha'],
                     'deve_trocar_senha' => $sessionData['deve_trocar_senha'],
                     'exp' => $decoded->exp
                 ]
@@ -259,6 +286,23 @@ class Auth {
      * Middleware de autorização por tipo
      */
     public function requireRole($allowedRoles, $user) {
+        $userTipo = $user['tipo'];
+        
+        // Mapear 'admin' para 'administrador' para compatibilidade
+        if ($userTipo === 'admin') {
+            $userTipo = 'administrador';
+        }
+        
+        // Também mapear na lista de roles permitidas
+        $mappedRoles = array_map(function($role) {
+            return $role === 'admin' ? 'administrador' : $role;
+        }, $allowedRoles);
+        
+        // Adicionar 'admin' se 'administrador' estiver na lista
+        if (in_array('administrador', $mappedRoles) && !in_array('admin', $allowedRoles)) {
+            $allowedRoles[] = 'admin';
+        }
+        
         if (!in_array($user['tipo'], $allowedRoles)) {
             http_response_code(403);
             echo json_encode([
@@ -382,6 +426,12 @@ class Auth {
      */
     public function getPermissionsForUserType($userType) {
         $permissions = [
+            'admin' => [ // Compatibilidade com 'admin'
+                'canManageUsers' => true,
+                'canManageContent' => true,
+                'canViewAuditLogs' => true,
+                'canExportData' => true
+            ],
             'administrador' => [
                 'canManageUsers' => true,
                 'canManageContent' => true,

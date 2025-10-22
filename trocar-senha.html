@@ -223,9 +223,11 @@
             <div class="requirements">
                 <h4>Requisitos da senha:</h4>
                 <ul>
-                    <li>Mínimo de 4 caracteres</li>
-                    <li>Recomendado: use letras, números e símbolos</li>
-                    <li>Evite senhas muito simples</li>
+                    <li>Mínimo de 8 caracteres</li>
+                    <li>Pelo menos uma letra maiúscula (A-Z)</li>
+                    <li>Pelo menos uma letra minúscula (a-z)</li>
+                    <li>Pelo menos um número (0-9)</li>
+                    <li>Pelo menos um caractere especial (!@#$%...)</li>
                 </ul>
             </div>
             
@@ -275,8 +277,20 @@
             if (!novaSenha) {
                 showError('novaSenhaError', 'Nova senha é obrigatória');
                 hasError = true;
-            } else if (novaSenha.length < 4) {
-                showError('novaSenhaError', 'Nova senha deve ter pelo menos 4 caracteres');
+            } else if (novaSenha.length < 8) {
+                showError('novaSenhaError', 'Nova senha deve ter pelo menos 8 caracteres');
+                hasError = true;
+            } else if (!/[A-Z]/.test(novaSenha)) {
+                showError('novaSenhaError', 'Nova senha deve conter pelo menos uma letra maiúscula');
+                hasError = true;
+            } else if (!/[a-z]/.test(novaSenha)) {
+                showError('novaSenhaError', 'Nova senha deve conter pelo menos uma letra minúscula');
+                hasError = true;
+            } else if (!/[0-9]/.test(novaSenha)) {
+                showError('novaSenhaError', 'Nova senha deve conter pelo menos um número');
+                hasError = true;
+            } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(novaSenha)) {
+                showError('novaSenhaError', 'Nova senha deve conter pelo menos um caractere especial');
                 hasError = true;
             }
             

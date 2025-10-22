@@ -4,19 +4,24 @@
  * Sistema de Recepção Terra do Bugio - Versão PHP
  */
 
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
+
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 // Configurar timezone
 require_once __DIR__ . '/../config/timezone.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
 
-// Tratar requisições OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json');
 
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../config/database.php';
@@ -100,16 +105,28 @@ function handleGetFrequencias($auth) {
  * Registra uma nova frequência
  */
 function handleCreateFrequencia($auth) {
-    // Verificar autenticação
-    $user = $auth->requireAuth();
-    
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    if (!$input) {
-        http_response_code(400);
+    try {
+        // Verificar autenticação
+        $user = $auth->requireAuth();
+        
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        error_log("DEBUG - Dados recebidos: " . json_encode($input));
+        
+        if (!$input) {
+            http_response_code(400);
+            echo json_encode([
+                'error' => 'Dados inválidos',
+                'code' => 'INVALID_INPUT'
+            ]);
+            return;
+        }
+    } catch (Exception $e) {
+        error_log("ERRO na autenticação de frequência: " . $e->getMessage());
+        http_response_code(401);
         echo json_encode([
-            'error' => 'Dados inválidos',
-            'code' => 'INVALID_INPUT'
+            'error' => 'Erro de autenticação: ' . $e->getMessage(),
+            'code' => 'AUTH_ERROR'
         ]);
         return;
     }
@@ -200,22 +217,42 @@ function handleCreateFrequencia($auth) {
     
     $sql .= ") " . $values . ")";
     
-    // Inserir no banco de dados
-    $frequenciaId = db()->insert($sql, $dadosFrequencia);
+    // Log do SQL e parâmetros para debug
+    error_log("DEBUG - SQL: " . $sql);
+    error_log("DEBUG - Parâmetros: " . json_encode($dadosFrequencia));
     
-    // Buscar frequência criada
-    $frequenciaCriada = db()->fetchOne(
-        "SELECT f.*, p.nome as pessoa_nome 
-         FROM frequencias f 
-         INNER JOIN pessoas p ON f.pessoa_id = p.id 
-         WHERE f.id = ?",
-        [$frequenciaId]
-    );
-    
-    http_response_code(201);
-    echo json_encode([
-        'success' => true,
-        'message' => 'Frequência registrada com sucesso',
-        'frequencia' => $frequenciaCriada
-    ]);
+    try {
+        // Inserir no banco de dados
+        $frequenciaId = db()->insert($sql, $dadosFrequencia);
+        
+        error_log("DEBUG - Frequência inserida com ID: " . $frequenciaId);
+        
+        // Buscar frequência criada
+        $frequenciaCriada = db()->fetchOne(
+            "SELECT f.*, p.nome as pessoa_nome 
+             FROM frequencias f 
+             INNER JOIN pessoas p ON f.pessoa_id = p.id 
+             WHERE f.id = ?",
+            [$frequenciaId]
+        );
+        
+        http_response_code(201);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Frequência registrada com sucesso',
+            'frequencia' => $frequenciaCriada
+        ]);
+    } catch (Exception $e) {
+        error_log("ERRO ao inserir frequência: " . $e->getMessage());
+        error_log("ERRO SQL: " . $sql);
+        error_log("ERRO Params: " . json_encode($dadosFrequencia));
+        
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Erro ao inserir frequência: ' . $e->getMessage(),
+            'code' => 'DATABASE_ERROR',
+            'sql' => $sql,
+            'params' => $dadosFrequencia
+        ]);
+    }
 }

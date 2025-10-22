@@ -142,10 +142,19 @@
                 
                 console.log('Status da resposta:', response.status);
                 
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text);
+                    errorDiv.textContent = 'Erro no servidor. Verifique se o PHP está configurado corretamente.';
+                    return;
+                }
+                
                 const data = await response.json();
                 console.log('Dados recebidos:', data);
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     // Salvar token e dados do usuário
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
@@ -157,7 +166,7 @@
                 }
             } catch (error) {
                 console.error('Erro no login:', error);
-                errorDiv.textContent = 'Erro de conexão com o servidor';
+                errorDiv.textContent = 'Erro de conexão: ' + error.message;
             }
         });
     </script>

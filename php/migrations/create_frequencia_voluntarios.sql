@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS voluntarios (
 
 -- Criar a tabela frequencia_voluntarios
 CREATE TABLE IF NOT EXISTS frequencia_voluntarios (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     voluntario_id INT NOT NULL,
     data_trabalho DATE NOT NULL,
     hora_inicio TIME NOT NULL,
@@ -47,13 +47,13 @@ CREATE TABLE IF NOT EXISTS frequencia_voluntarios (
         'Segurança'
     ),
     observacoes TEXT,
-    lancado_por INT UNSIGNED NOT NULL,
+    lancado_por INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     -- Chaves estrangeiras
     FOREIGN KEY (voluntario_id) REFERENCES voluntarios(id) ON DELETE CASCADE,
-    FOREIGN KEY (lancado_por) REFERENCES usuarios(id),
+    FOREIGN KEY (lancado_por) REFERENCES usuarios(id) ON DELETE SET NULL,
     
     -- Índices para performance
     INDEX idx_voluntario_data (voluntario_id, data_trabalho),

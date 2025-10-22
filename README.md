@@ -66,7 +66,7 @@ iniciar_local.bat
 - **Backend**: PHP 8+, MySQL 8+, JWT
 - **Frontend**: HTML5, CSS3, JavaScript ES6+
 - **Ferramentas**: XAMPP, Git, Composer
-- **Deploy**: Netlify, Apache
+- **Deploy**: Hostinger, Apache
 
 ## 📋 Pré-requisitos
 
@@ -239,6 +239,37 @@ php gerar_export_completo.php
 mysql -u root -p recepcaotb_local < backup.sql
 ```
 
+## 🚀 Deploy em Produção
+
+### Deploy para Hostinger
+
+**URL de Produção**: https://ivory-worm-865052.hostingersite.com/
+
+#### 1. Preparar Deploy
+```bash
+# Executar script de preparação
+preparar_deploy.bat
+```
+
+#### 2. Upload para Servidor
+- Acesse o **hPanel** do Hostinger
+- Use o **File Manager** ou **FTP**
+- Faça upload do arquivo `recepcaotb_hostinger.zip`
+- Extraia no diretório `public_html/`
+
+#### 3. Configurar Banco de Dados
+- Acesse **phpMyAdmin**
+- Importe o backup mais recente
+- Verifique as credenciais no `.env`
+
+#### 4. Verificar Deploy
+- Acesse: https://ivory-worm-865052.hostingersite.com/
+- Login: admin@terradobugio.com
+- Senha: Admin@123
+
+**📖 Documentação Completa**: Ver [DEPLOY_HOSTINGER.md](DEPLOY_HOSTINGER.md)  
+**✅ Checklist de Deploy**: Ver [CHECKLIST_DEPLOY.md](CHECKLIST_DEPLOY.md)
+
 ## 🔐 Segurança
 
 ### Recursos Implementados
@@ -361,5 +392,6 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 **Sistema Terra do Bugio - Versão 2.0.0**  
 *Desenvolvido com ❤️ para a comunidade Terra do Bugio*
 
-**📅 Última Atualização**: 19 de Outubro de 2025  
-**✅ Status**: Produção - Totalmente Funcional
+**📅 Última Atualização**: 22 de Outubro de 2025  
+**✅ Status**: Produção - Totalmente Funcional  
+**🌐 Deploy**: Hostinger (https://ivory-worm-865052.hostingersite.com/)

@@ -6,19 +6,27 @@
  * Acesso restrito: Apenas administradores e líderes
  */
 
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
+
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Configurar timezone
+require_once __DIR__ . '/../config/timezone.php';
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../classes/Auth.php';
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
 
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 // Verificar autenticação
 $auth = new Auth();
@@ -31,7 +39,8 @@ if (!$user) {
 }
 
 // Verificar permissões - apenas administradores e líderes
-if (!in_array($user['tipo'], ['administrador', 'lider'])) {
+// Aceitar tanto 'admin' quanto 'administrador' por compatibilidade
+if (!in_array($user['tipo'], ['admin', 'administrador', 'lider'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Acesso negado. Apenas administradores e líderes podem gerenciar voluntários.']);
     exit;
@@ -208,22 +217,39 @@ function createVoluntario($pdo) {
     
     // Verificar se CPF já existe
     if ($cpf) {
-        $stmt = $pdo->prepare("SELECT id FROM voluntarios WHERE cpf = ?");
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf); // Remover formatação
+        error_log("Verificando CPF: $cpf (limpo: $cpfLimpo)");
+        
+        $stmt = $pdo->prepare("SELECT id, nome FROM voluntarios WHERE cpf = ?");
         $stmt->execute([$cpf]);
-        if ($stmt->fetch()) {
+        $existente = $stmt->fetch();
+        
+        if ($existente) {
+            error_log("CPF já existe - ID: {$existente['id']}, Nome: {$existente['nome']}");
             http_response_code(409);
-            echo json_encode(['error' => 'CPF já cadastrado']);
+            echo json_encode([
+                'error' => 'CPF já cadastrado',
+                'detalhes' => "O CPF $cpf já pertence a: {$existente['nome']} (ID: {$existente['id']})"
+            ]);
             return;
         }
     }
     
     // Verificar se email já existe
     if ($email) {
-        $stmt = $pdo->prepare("SELECT id FROM voluntarios WHERE email = ?");
+        error_log("Verificando e-mail: $email");
+        
+        $stmt = $pdo->prepare("SELECT id, nome FROM voluntarios WHERE email = ?");
         $stmt->execute([$email]);
-        if ($stmt->fetch()) {
+        $existente = $stmt->fetch();
+        
+        if ($existente) {
+            error_log("E-mail já existe - ID: {$existente['id']}, Nome: {$existente['nome']}");
             http_response_code(409);
-            echo json_encode(['error' => 'E-mail já cadastrado']);
+            echo json_encode([
+                'error' => 'E-mail já cadastrado',
+                'detalhes' => "O e-mail $email já pertence a: {$existente['nome']} (ID: {$existente['id']})"
+            ]);
             return;
         }
     }
@@ -270,6 +296,19 @@ function createVoluntario($pdo) {
             $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
             $stmt->execute([$email]);
             if (!$stmt->fetch()) {
+                // Validar força da senha antes de criar usuário
+                $auth = new Auth();
+                $senhaValidacao = $auth->validatePasswordStrength($senhaUsuario);
+                if (!$senhaValidacao['valid']) {
+                    $pdo->rollBack();
+                    http_response_code(400);
+                    echo json_encode([
+                        'error' => $senhaValidacao['message'],
+                        'code' => 'WEAK_PASSWORD'
+                    ]);
+                    exit;
+                }
+                
                 // Criar usuário
                 $senhaHash = password_hash($senhaUsuario, PASSWORD_DEFAULT);
                 $senhaGerada = $senhaUsuario; // Para retornar na resposta

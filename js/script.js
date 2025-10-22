@@ -329,13 +329,34 @@ class SistemaFrequencia {
         const secoes = document.querySelectorAll('.secao');
 
         navBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                // Se é um link (tag <a>), não processar como navegação interna
+                if (btn.tagName.toLowerCase() === 'a') {
+                    // Deixa o comportamento padrão do link funcionar
+                    return;
+                }
+                
+                // Se não tem ID, não processar
+                if (!btn.id) {
+                    console.warn('Botão de navegação sem ID:', btn);
+                    return;
+                }
+                
+                e.preventDefault(); // Previne comportamento padrão apenas para botões internos
+                
                 navBtns.forEach(b => b.classList.remove('active'));
                 secoes.forEach(s => s.classList.remove('active'));
                 
                 btn.classList.add('active');
                 const secaoId = 'secao' + btn.id.replace('btn', '');
-                document.getElementById(secaoId).classList.add('active');
+                const secaoElement = document.getElementById(secaoId);
+                
+                // Apenas adiciona a classe se o elemento existir
+                if (secaoElement) {
+                    secaoElement.classList.add('active');
+                } else {
+                    console.warn('Seção não encontrada:', secaoId);
+                }
             });
         });
     }

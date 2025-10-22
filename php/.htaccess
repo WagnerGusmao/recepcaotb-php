@@ -17,10 +17,11 @@ RewriteRule ^api/usuarios/?(.*)$ api/usuarios.php [QSA,L]
 RewriteRule ^api/voluntarios/?(.*)$ api/voluntarios.php [QSA,L]
 RewriteRule ^api/frequencia_voluntarios/?(.*)$ api/frequencia_voluntarios.php [QSA,L]
 
-# Servir arquivos estáticos da raiz
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ ../index.html [L]
+# Removido: Regra catch-all que redirecionava para index.html
+# Essa regra estava impedindo o acesso correto às APIs
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule ^(.*)$ ../index.html [L]
 
 # Configurações de segurança
 <Files ".env">

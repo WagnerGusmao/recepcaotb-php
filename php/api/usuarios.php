@@ -4,16 +4,24 @@
  * Sistema de Recepção Terra do Bugio - Versão PHP
  */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
 
-// Tratar requisições OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Configurar timezone
+require_once __DIR__ . '/../config/timezone.php';
+
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
+
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json');
 
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../config/database.php';
@@ -80,11 +88,11 @@ try {
 }
 
 /**
- * Lista usuários (apenas administradores)
+ * Lista usuários (administradores e líderes)
  */
 function handleGetUsuarios($auth) {
     $user = $auth->requireAuth();
-    $auth->requireRole(['administrador'], $user);
+    $auth->requireRole(['administrador', 'lider'], $user);
     
     $users = db()->fetchAll(
         "SELECT u.id, u.nome, u.email, u.tipo, u.ativo, u.created_at, p.nome as pessoa_nome 
@@ -98,11 +106,11 @@ function handleGetUsuarios($auth) {
 }
 
 /**
- * Cria um novo usuário (apenas administradores)
+ * Cria um novo usuário (administradores e líderes)
  */
 function handleCreateUsuario($auth) {
     $user = $auth->requireAuth();
-    $auth->requireRole(['administrador'], $user);
+    $auth->requireRole(['administrador', 'lider'], $user);
     
     $input = json_decode(file_get_contents('php://input'), true);
     
@@ -132,9 +140,14 @@ function handleCreateUsuario($auth) {
         return;
     }
     
-    if (strlen($senha) < 4) {
+    // Validar força da senha
+    $senhaValidacao = $auth->validatePasswordStrength($senha);
+    if (!$senhaValidacao['valid']) {
         http_response_code(400);
-        echo json_encode(['error' => 'Senha deve ter pelo menos 4 caracteres']);
+        echo json_encode([
+            'error' => $senhaValidacao['message'],
+            'code' => 'WEAK_PASSWORD'
+        ]);
         return;
     }
     
@@ -196,11 +209,11 @@ function handleCreateUsuario($auth) {
 }
 
 /**
- * Atualiza status de um usuário (apenas administradores)
+ * Atualiza status de um usuário (administradores e líderes)
  */
 function handleUpdateUsuario($auth, $id) {
     $user = $auth->requireAuth();
-    $auth->requireRole(['administrador'], $user);
+    $auth->requireRole(['administrador', 'lider'], $user);
     
     // Prevenir que o próprio usuário se desative ou altere seu próprio tipo
     if (intval($id) === $user['id']) {
@@ -259,11 +272,11 @@ function handleUpdateUsuario($auth, $id) {
 }
 
 /**
- * Reset de senha de um usuário (apenas administradores)
+ * Reset de senha de um usuário (administradores e líderes)
  */
 function handleResetSenha($auth, $id) {
     $user = $auth->requireAuth();
-    $auth->requireRole(['administrador'], $user);
+    $auth->requireRole(['administrador', 'lider'], $user);
     
     $input = json_decode(file_get_contents('php://input'), true);
     
@@ -275,9 +288,14 @@ function handleResetSenha($auth, $id) {
     
     $novaSenha = $input['novaSenha'];
     
-    if (strlen($novaSenha) < 4) {
+    // Validar força da senha
+    $senhaValidacao = $auth->validatePasswordStrength($novaSenha);
+    if (!$senhaValidacao['valid']) {
         http_response_code(400);
-        echo json_encode(['error' => 'Senha deve ter pelo menos 4 caracteres']);
+        echo json_encode([
+            'error' => $senhaValidacao['message'],
+            'code' => 'WEAK_PASSWORD'
+        ]);
         return;
     }
     
@@ -378,10 +396,14 @@ function handleEditarPerfil($auth) {
             return;
         }
         
-        // Validar nova senha
-        if (strlen($novaSenha) < 4) {
+        // Validar força da nova senha
+        $senhaValidacao = $auth->validatePasswordStrength($novaSenha);
+        if (!$senhaValidacao['valid']) {
             http_response_code(400);
-            echo json_encode(['error' => 'Nova senha deve ter pelo menos 4 caracteres']);
+            echo json_encode([
+                'error' => $senhaValidacao['message'],
+                'code' => 'WEAK_PASSWORD'
+            ]);
             return;
         }
         
@@ -448,16 +470,33 @@ function handleTrocarSenhaObrigatoria($auth) {
         return;
     }
     
+    // Buscar senha atual do banco de dados
+    $usuarioAtual = db()->fetchOne(
+        "SELECT senha FROM usuarios WHERE id = ?",
+        [$user['id']]
+    );
+    
+    if (!$usuarioAtual) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Usuário não encontrado']);
+        return;
+    }
+    
     // Verificar senha atual
-    if (!password_verify($senhaAtual, $user['senha'])) {
+    if (!password_verify($senhaAtual, $usuarioAtual['senha'])) {
         http_response_code(400);
         echo json_encode(['error' => 'Senha atual incorreta']);
         return;
     }
     
-    if (strlen($novaSenha) < 4) {
+    // Validar força da nova senha
+    $senhaValidacao = $auth->validatePasswordStrength($novaSenha);
+    if (!$senhaValidacao['valid']) {
         http_response_code(400);
-        echo json_encode(['error' => 'Nova senha deve ter pelo menos 4 caracteres']);
+        echo json_encode([
+            'error' => $senhaValidacao['message'],
+            'code' => 'WEAK_PASSWORD'
+        ]);
         return;
     }
     

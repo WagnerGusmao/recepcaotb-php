@@ -4,19 +4,24 @@
  * Sistema de Recepção Terra do Bugio - Versão PHP
  */
 
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
+
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 // Configurar timezone
 require_once __DIR__ . '/../config/timezone.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
 
-// Tratar requisições OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json');
 
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../config/database.php';
@@ -137,3 +142,6 @@ function handleMe($auth) {
         'permissions' => $auth->getPermissionsForUserType($user['tipo'])
     ]);
 }
+
+// Garantir que apenas o JSON seja enviado (flush do buffer)
+ob_end_flush();

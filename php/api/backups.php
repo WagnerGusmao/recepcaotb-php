@@ -4,16 +4,24 @@
  * Sistema de Recepção Terra do Bugio - Versão PHP
  */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
 
-// Tratar requisições OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Configurar timezone
+require_once __DIR__ . '/../config/timezone.php';
+
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
+
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json');
 
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../config/database.php';
@@ -40,7 +48,8 @@ if (!$authResult['valid']) {
 $user = $authResult['user'];
 
 // Verificar se é administrador
-if ($user['tipo'] !== 'administrador') {
+// Aceitar tanto 'admin' quanto 'administrador' por compatibilidade
+if (!in_array($user['tipo'], ['admin', 'administrador'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Apenas administradores podem gerenciar backups']);
     exit;
@@ -159,11 +168,11 @@ function handleCreateBackup() {
         $input = json_decode(file_get_contents('php://input'), true);
         $tipo = $input['tipo'] ?? 'completo';
         
-        // Configurações do MySQL
-        $host = 'localhost';
-        $username = 'root';
-        $password = '';
-        $database = 'recepcaotb';
+        // Configurações do MySQL - usar configurações do .env ou padrões
+        $host = $_ENV['DB_HOST'] ?? 'localhost';
+        $username = $_ENV['DB_USER'] ?? 'root';
+        $password = $_ENV['DB_PASS'] ?? '';
+        $database = $_ENV['DB_NAME'] ?? 'recepcaotb_local';
         
         // Nome do arquivo baseado no tipo e timestamp
         $timestamp = date('Y-m-d_His');
@@ -184,12 +193,40 @@ function handleCreateBackup() {
         
         $filepath = $backupDir . '/' . $filename;
         
-        // Comando mysqldump
+        // Encontrar executável mysqldump
+        $mysqldump = 'mysqldump';
+        
+        // Verificar se mysqldump está no PATH
+        $testOutput = [];
+        exec('mysqldump --version 2>&1', $testOutput, $testCode);
+        
+        // Se não estiver no PATH, procurar em locais comuns
+        if ($testCode !== 0) {
+            $caminhosPossiveis = [
+                'C:\xampp\mysql\bin\mysqldump.exe',
+                'C:\wamp64\bin\mysql\mysql8.0.27\bin\mysqldump.exe',
+                'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe',
+                'C:\Program Files\MySQL\MySQL Server 5.7\bin\mysqldump.exe',
+                '/usr/bin/mysqldump',
+                '/usr/local/bin/mysqldump'
+            ];
+            
+            foreach ($caminhosPossiveis as $caminho) {
+                if (file_exists($caminho)) {
+                    $mysqldump = "\"$caminho\"";
+                    break;
+                }
+            }
+        }
+        
+        // Construir comando mysqldump
+        $passwordArg = empty($password) ? '' : " -p\"{$password}\"";
+        
         if ($tables) {
             $tablesStr = implode(' ', $tables);
-            $command = "mysqldump -h{$host} -u{$username} --single-transaction --routines --triggers {$database} {$tablesStr} > \"{$filepath}\"";
+            $command = "{$mysqldump} -h{$host} -u{$username}{$passwordArg} --single-transaction --routines --triggers {$database} {$tablesStr} > \"{$filepath}\"";
         } else {
-            $command = "mysqldump -h{$host} -u{$username} --single-transaction --routines --triggers {$database} > \"{$filepath}\"";
+            $command = "{$mysqldump} -h{$host} -u{$username}{$passwordArg} --single-transaction --routines --triggers {$database} > \"{$filepath}\"";
         }
         
         // Executar comando
@@ -198,7 +235,16 @@ function handleCreateBackup() {
         exec($command . ' 2>&1', $output, $returnCode);
         
         if ($returnCode !== 0) {
-            throw new Exception("Erro ao criar backup: " . implode("\n", $output));
+            $errorMsg = "Erro ao executar mysqldump: " . implode("\n", $output);
+            error_log($errorMsg);
+            
+            // Verificar se é erro de comando não encontrado
+            if (strpos(implode('', $output), 'not found') !== false || 
+                strpos(implode('', $output), 'não reconhecido') !== false) {
+                throw new Exception("mysqldump não está disponível. Certifique-se de que o MySQL está instalado e no PATH.");
+            }
+            
+            throw new Exception($errorMsg);
         }
         
         // Verificar se arquivo foi criado
@@ -212,6 +258,9 @@ function handleCreateBackup() {
         echo json_encode([
             'success' => true,
             'message' => 'Backup criado com sucesso',
+            'filename' => $filename,
+            'size' => $size,
+            'date' => date('Y-m-d H:i:s'),
             'backup' => [
                 'nome' => $filename,
                 'tamanho' => $size,

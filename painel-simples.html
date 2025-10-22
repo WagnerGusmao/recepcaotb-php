@@ -30,6 +30,10 @@
     
     <!-- Adicionando html2canvas para melhor suporte a elementos HTML -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- Sanitizer - Proteção contra XSS -->
+    <script src="js/utils/sanitizer.js"></script>
+    
     <script src="js/municipios-completos.js"></script>
     
     <script>
@@ -76,16 +80,17 @@
         }
 
         // Função para abrir a página de backup/restore
-        function abrirBackup() {
+        window.abrirBackup = function() {
             // Verificar se o usuário é administrador
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             
-            if (user.tipo === 'administrador') {
-                window.location.href = 'backend/backup.html';
+            // Aceitar tanto 'admin' quanto 'administrador'
+            if (user.tipo === 'administrador' || user.tipo === 'admin') {
+                showSection('backup');
             } else {
                 alert('Apenas administradores podem acessar o gerenciamento de backup.');
             }
-        }
+        };
 
         // Configuração global para jsPDF
         (function() {
@@ -191,9 +196,9 @@
         <button class="menu-btn" onclick="showSection('voluntarios')">🤝 Voluntários</button>
         <button class="menu-btn" onclick="showSection('frequencia_voluntarios')" id="btnFrequenciaVoluntarios" style="display: none;">⏰ Frequência Voluntários</button>
         <button class="menu-btn" onclick="showSection('relatorios')">📊 Relatórios</button>
-        <button class="menu-btn" onclick="showSection('usuarios')">👥 Usuários</button>
-        <button class="menu-btn" onclick="showSection('duplicatas')">🔍 Duplicatas</button>
-        <button class="menu-btn" onclick="abrirBackup()" style="background-color: #28a745; color: white; border-color: #28a745;">💾 Backup/Restore</button>
+        <button class="menu-btn" onclick="showSection('usuarios')" id="btnUsuarios" style="display: none;">👥 Usuários</button>
+        <button class="menu-btn" onclick="showSection('duplicatas')" id="btnDuplicatas" style="display: none;">🔍 Duplicatas</button>
+        <button class="menu-btn" onclick="abrirBackup()" id="btnBackup" style="display: none; background-color: #28a745; color: white; border-color: #28a745;">💾 Backup/Restore</button>
         <button class="menu-btn" onclick="showSection('perfil')">👤 Meu Perfil</button>
     </div>
 
@@ -436,12 +441,11 @@
         <!-- Busca de Voluntário -->
         <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
             <h3>1. Selecionar Voluntário</h3>
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                <input type="text" id="buscaVoluntario" placeholder="Buscar voluntário por nome, CPF ou e-mail" 
-                       style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <button onclick="buscarVoluntarioFrequencia()" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
-                    🔍 Buscar
-                </button>
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="buscaVoluntario" placeholder="Buscar voluntário por nome, CPF ou e-mail (digite para buscar automaticamente)" 
+                       style="width: 100%; padding: 10px; border: 2px solid #007bff; border-radius: 4px; font-size: 14px;"
+                       autocomplete="off">
+                <small style="color: #666; display: block; margin-top: 5px;">💡 A busca acontece automaticamente conforme você digita</small>
             </div>
             <div id="resultadoBuscaVoluntario"></div>
         </div>
@@ -885,6 +889,55 @@
         </div>
     </div>
 
+    <!-- Seção Backup/Restore -->
+    <div id="backup" class="section">
+        <h2>💾 Backup e Restauração</h2>
+        
+        <div style="max-width: 800px; margin: 0 auto;">
+            <!-- Informações -->
+            <div style="background: #e7f3ff; padding: 15px; border-left: 4px solid #007bff; margin-bottom: 20px; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #007bff;">ℹ️ Sobre Backups</h3>
+                <p style="margin: 5px 0;">• Backups são salvos em: <code>php/backups/</code></p>
+                <p style="margin: 5px 0;">• Formato: SQL (compatível com MySQL/MariaDB)</p>
+                <p style="margin: 5px 0;">• Recomendado: Fazer backup diariamente</p>
+                <p style="margin: 5px 0; color: #d32f2f;"><strong>⚠️ Importante:</strong> Guarde os backups em local seguro!</p>
+            </div>
+
+            <!-- Criar Novo Backup -->
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: #28a745;">📦 Criar Novo Backup</h3>
+                <p>Gera um backup completo do banco de dados atual.</p>
+                <button onclick="criarBackup(this)" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                    💾 Criar Backup Agora
+                </button>
+            </div>
+
+            <!-- Restaurar Backup -->
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: #dc3545;">🔄 Restaurar Backup</h3>
+                <div style="background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin-bottom: 15px; border-radius: 4px;">
+                    <strong>⚠️ ATENÇÃO:</strong> Restaurar um backup irá <strong>substituir todos os dados atuais</strong>. Esta ação não pode ser desfeita!
+                </div>
+                <p>Selecione um arquivo de backup (.sql) para restaurar:</p>
+                <input type="file" id="arquivoBackup" accept=".sql" style="margin-bottom: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+                <button onclick="restaurarBackup(this)" style="background: #dc3545; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                    🔄 Restaurar Backup
+                </button>
+            </div>
+
+            <!-- Lista de Backups Disponíveis -->
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #007bff;">📋 Backups Disponíveis</h3>
+                <button onclick="listarBackups(this)" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-bottom: 15px;">
+                    🔄 Atualizar Lista
+                </button>
+                <div id="listaBackups" style="min-height: 100px;">
+                    <p style="color: #666; text-align: center;">Clique em "Atualizar Lista" para ver os backups disponíveis</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Novo Voluntário -->
     <div id="modalNovoVoluntario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
@@ -1149,14 +1202,45 @@
                 // Carregar dados específicos da seção (se usuário estiver logado)
                 const user = JSON.parse(localStorage.getItem('user') || '{}');
                 if (user.id) {
-                    if (sectionId === 'usuarios' && user.tipo === 'administrador') {
-                        carregarUsuarios();
-                    } else if (sectionId === 'voluntarios' && (user.tipo === 'administrador' || user.tipo === 'lider')) {
+                    // Aceitar tanto 'admin' quanto 'administrador' por compatibilidade
+                    if (sectionId === 'usuarios') {
+                        console.log('🔍 DEBUG - Seção usuários clicada');
+                        console.log('   Tipo de usuário:', user.tipo);
+                        console.log('   Permissão:', (user.tipo === 'administrador' || user.tipo === 'admin' || user.tipo === 'lider') ? 'PERMITIDO' : 'NEGADO');
+                        
+                        if (user.tipo === 'administrador' || user.tipo === 'admin' || user.tipo === 'lider') {
+                            console.log('✅ Carregando lista de usuários...');
+                            carregarUsuarios();
+                        } else {
+                            console.warn('❌ Usuário sem permissão para ver usuários');
+                            alert('Você não tem permissão para visualizar usuários');
+                            showSection('frequencia');
+                            return;
+                        }
+                    } else if (sectionId === 'voluntarios' && (user.tipo === 'administrador' || user.tipo === 'admin' || user.tipo === 'lider')) {
                         carregarVoluntarios();
                     } else if (sectionId === 'perfil') {
                         carregarPerfil();
-                    } else if (sectionId === 'duplicatas' && user.tipo === 'administrador') {
-                        console.log('Seção de duplicatas carregada para administrador');
+                    } else if (sectionId === 'duplicatas') {
+                        // Verificar se é administrador
+                        if (user.tipo === 'administrador' || user.tipo === 'admin') {
+                            console.log('Seção de duplicatas carregada para administrador');
+                        } else {
+                            // Bloquear acesso para não-administradores (incluindo líderes)
+                            alert('❌ Acesso negado! Apenas administradores podem acessar a gestão de duplicatas.');
+                            showSection('frequencia');
+                            return;
+                        }
+                    } else if (sectionId === 'backup') {
+                        // Verificar se é administrador
+                        if (user.tipo === 'administrador' || user.tipo === 'admin') {
+                            console.log('Seção de backup carregada para administrador');
+                        } else {
+                            // Bloquear acesso para não-administradores (incluindo líderes)
+                            alert('❌ Acesso negado! Apenas administradores podem acessar Backup/Restore.');
+                            showSection('frequencia');
+                            return;
+                        }
                     } else if (sectionId === 'frequencia_voluntarios') {
                         carregarFrequenciasVoluntarios();
                     }
@@ -1211,46 +1295,8 @@
             }
         };
         
-        // Função para carregar usuários (global)
-        window.carregarUsuarios = async function() {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-                
-                console.log('Carregando usuários...');
-                const response = await fetch('/api/usuarios', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const usuarios = data.usuarios || [];
-                    
-                    const container = document.getElementById('listaUsuarios');
-                    if (container) {
-                        if (usuarios.length === 0) {
-                            container.innerHTML = '<p>Nenhum usuário encontrado.</p>';
-                        } else {
-                            container.innerHTML = usuarios.map(usuario => `
-                                <div class="usuario-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
-                                    <h4>${usuario.nome}</h4>
-                                    <p><strong>Email:</strong> ${usuario.email}</p>
-                                    <p><strong>Tipo:</strong> ${usuario.tipo}</p>
-                                    <p><strong>Status:</strong> ${usuario.ativo ? 'Ativo' : 'Inativo'}</p>
-                                    <button onclick="editarTipoUsuario(${usuario.id}, '${usuario.tipo}')" style="margin-right: 10px;">Editar Tipo</button>
-                                    <button onclick="resetarSenhaUsuario(${usuario.id})" style="margin-right: 10px;">Reset Senha</button>
-                                    <button onclick="toggleStatusUsuario(${usuario.id}, ${usuario.ativo})">${usuario.ativo ? 'Desativar' : 'Ativar'}</button>
-                                </div>
-                            `).join('');
-                        }
-                    }
-                } else {
-                    console.error('Erro ao carregar usuários:', response.status);
-                }
-            } catch (error) {
-                console.error('Erro ao carregar usuários:', error);
-            }
-        };
+        // FUNÇÃO ANTIGA REMOVIDA - A função correta window.carregarUsuarios está na linha ~3468
+        // Essa função estava procurando por #listaUsuarios (ID errado) em vez de #usuariosLista
         
         // Função para carregar voluntários (global)
         window.carregarVoluntarios = async function(busca = '') {
@@ -1272,15 +1318,21 @@
                         if (voluntarios.length === 0) {
                             container.innerHTML = '<p>Nenhum voluntário encontrado.</p>';
                         } else {
-                            container.innerHTML = voluntarios.map(voluntario => `
+                            container.innerHTML = voluntarios.map(voluntario => {
+                                const nome = Sanitizer.escapeHtml(voluntario.nome);
+                                const email = Sanitizer.escapeHtml(voluntario.email || 'Não informado');
+                                const cpf = Sanitizer.escapeHtml(voluntario.cpf || 'Não informado');
+                                const cidade = Sanitizer.escapeHtml(voluntario.cidade || 'Não informado');
+                                return `
                                 <div class="voluntario-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
-                                    <h4>${voluntario.nome}</h4>
-                                    <p><strong>Email:</strong> ${voluntario.email || 'Não informado'}</p>
-                                    <p><strong>CPF:</strong> ${voluntario.cpf || 'Não informado'}</p>
-                                    <p><strong>Cidade:</strong> ${voluntario.cidade || 'Não informado'}</p>
-                                    <button onclick="editarVoluntario(${voluntario.id})">Editar</button>
+                                    <h4>${nome}</h4>
+                                    <p><strong>Email:</strong> ${email}</p>
+                                    <p><strong>CPF:</strong> ${cpf}</p>
+                                    <p><strong>Cidade:</strong> ${cidade}</p>
+                                    <p><strong>Status:</strong> ${voluntario.ativo ? 'Ativo' : 'Inativo'}</p>
                                 </div>
-                            `).join('');
+                            `;
+                            }).join('');
                         }
                     }
                 } else {
@@ -1451,6 +1503,64 @@
             console.error('Erro ao verificar permissões de frequência de voluntários:', error);
         }
 
+        // Verificar permissões para Usuários - administradores e líderes
+        try {
+            const btnUsuarios = document.getElementById('btnUsuarios');
+            console.log('🔍 DEBUG - Verificando permissões de usuários');
+            console.log('   Tipo de usuário:', user.tipo);
+            console.log('   Botão encontrado:', !!btnUsuarios);
+            
+            if (btnUsuarios) {
+                if (user.tipo === 'administrador' || user.tipo === 'admin' || user.tipo === 'lider') {
+                    btnUsuarios.style.display = 'inline-block';
+                    console.log('✅ Botão de usuários HABILITADO para:', user.tipo);
+                } else {
+                    btnUsuarios.style.display = 'none';
+                    console.log('❌ Botão de usuários OCULTO para:', user.tipo);
+                }
+            } else {
+                console.warn('⚠️ Elemento btnUsuarios não encontrado no DOM');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao verificar permissões de usuários:', error);
+        }
+
+        // Verificar permissões para Duplicatas - apenas administradores
+        try {
+            const btnDuplicatas = document.getElementById('btnDuplicatas');
+            if (btnDuplicatas) {
+                if (user.tipo === 'administrador' || user.tipo === 'admin') {
+                    btnDuplicatas.style.display = 'inline-block';
+                    console.log('Botão de duplicatas habilitado para administrador');
+                } else {
+                    btnDuplicatas.style.display = 'none';
+                    console.log('Botão de duplicatas oculto para:', user.tipo);
+                }
+            } else {
+                console.warn('Elemento btnDuplicatas não encontrado');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar permissões de duplicatas:', error);
+        }
+
+        // Verificar permissões para Backup/Restore - apenas administradores
+        try {
+            const btnBackup = document.getElementById('btnBackup');
+            if (btnBackup) {
+                if (user.tipo === 'administrador' || user.tipo === 'admin') {
+                    btnBackup.style.display = 'inline-block';
+                    console.log('Botão de backup habilitado para administrador');
+                } else {
+                    btnBackup.style.display = 'none';
+                    console.log('Botão de backup oculto para:', user.tipo);
+                }
+            } else {
+                console.warn('Elemento btnBackup não encontrado');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar permissões de backup:', error);
+        }
+
         // Mostrar info do usuário
         try {
             document.getElementById('userInfo').textContent = `${user.nome || 'Usuário'} (${user.tipo || 'N/A'})`;
@@ -1562,7 +1672,8 @@
                 
             } catch (error) {
                 console.error('Erro na busca:', error);
-                resultado.innerHTML = `<p style="color: red; padding: 10px;">Erro: ${error.message}<br><small>Verifique se o servidor está rodando</small></p>`;
+                const errorMsg = Sanitizer.escapeHtml(error.message);
+                resultado.innerHTML = `<p style="color: red; padding: 10px;">Erro: ${errorMsg}<br><small>Verifique se o servidor está rodando</small></p>`;
             }
         }
 
@@ -1621,7 +1732,7 @@
             }
         }
 
-        async function marcarFrequencia(button) {
+        window.marcarFrequencia = async function(button) {
             if (!pessoaSelecionada) {
                 alert('Selecione uma pessoa');
                 return;
@@ -1670,6 +1781,7 @@
             setButtonLoading(button, true);
             
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch('/api/frequencias', {
                     method: 'POST',
                     headers: {
@@ -1732,7 +1844,7 @@
             } finally {
                 setButtonLoading(button, false);
             }
-        }
+        };
 
         function limparFormulario() {
             document.getElementById('formFrequencia').style.display = 'none';
@@ -1761,7 +1873,7 @@
             document.getElementById('camposPet').style.display = 'none';
         }
 
-        async function gerarRelatorio(button) {
+        window.gerarRelatorio = async function(button) {
             setButtonLoading(button, true);
             
             // Ocultar filtros específicos de voluntários
@@ -1892,13 +2004,14 @@
                 };
             } catch (error) {
                 console.error('Erro ao gerar relatório:', error);
-                document.getElementById('relatorioResultado').innerHTML = `<p style="color: red;">Erro ao gerar relatório: ${error.message}</p>`;
+                const errorMsg = Sanitizer.escapeHtml(error.message);
+                document.getElementById('relatorioResultado').innerHTML = `<p style="color: red;">Erro ao gerar relatório: ${errorMsg}</p>`;
             } finally {
                 setButtonLoading(button, false);
             }
         }
 
-        async function gerarRelatorioMensal(button) {
+        window.gerarRelatorioMensal = async function(button) {
             setButtonLoading(button, true);
             
             // Ocultar filtros específicos de voluntários
@@ -1993,7 +2106,8 @@
                 };
             } catch (error) {
                 console.error('Erro ao gerar relatório mensal:', error);
-                document.getElementById('relatorioResultado').innerHTML = `<p style="color: red;">Erro ao gerar relatório mensal: ${error.message}</p>`;
+                const errorMsg = Sanitizer.escapeHtml(error.message);
+                document.getElementById('relatorioResultado').innerHTML = `<p style="color: red;">Erro ao gerar relatório mensal: ${errorMsg}</p>`;
             } finally {
                 setButtonLoading(button, false);
             }
@@ -2021,7 +2135,7 @@
                 .replace(/A\?O/g, 'ÃO');
         }
 
-        async function gerarRelatorioContatos(button) {
+        window.gerarRelatorioContatos = async function(button) {
             setButtonLoading(button, true);
             
             // Ocultar filtros específicos de voluntários
@@ -2204,7 +2318,7 @@
             }
         }
 
-        async function gerarRelatorioPessoasCidades(button) {
+        window.gerarRelatorioPessoasCidades = async function(button) {
             setButtonLoading(button, true);
             
             // Ocultar filtros específicos de voluntários
@@ -2457,7 +2571,7 @@
             }
         }
 
-        async function gerarRelatorioCadastros(button) {
+        window.gerarRelatorioCadastros = async function(button) {
             setButtonLoading(button, true);
             
             // Ocultar filtros específicos de voluntários
@@ -2639,7 +2753,7 @@
             }
         }
 
-        async function gerarRelatorioVoluntarios(button) {
+        window.gerarRelatorioVoluntarios = async function(button) {
             setButtonLoading(button, true);
             
             // Mostrar filtros específicos para voluntários e ocultar outros
@@ -2929,7 +3043,7 @@
             }
         }
 
-        function exportarCSV(button) {
+        window.exportarCSV = function(button) {
             const tabela = document.querySelector('#relatorioResultado table');
             if (!tabela) {
                 alert('Nenhum relatório para exportar');
@@ -2987,7 +3101,7 @@
             }, 500);
         }
 
-        async function exportarPDF(button) {
+        window.exportarPDF = async function(button) {
             console.log('🔄 Iniciando exportação PDF...');
             
             const tabela = document.querySelector('#relatorioResultado table');
@@ -3252,7 +3366,7 @@
             });
         }
 
-        function exportarXLSX(button) {
+        window.exportarXLSX = function(button) {
             const tabela = document.querySelector('#relatorioResultado table');
             if (!tabela) {
                 alert('Nenhum relatório para exportar');
@@ -3289,7 +3403,11 @@
                 const ws = XLSX.utils.table_to_sheet(tabela);
                 
                 // Adicionar worksheet ao workbook
-                const nomeAba = window.relatorioAtual?.tipo?.replace(/[^a-zA-Z0-9]/g, '_') || 'Relatorio';
+                // Excel tem limite de 31 caracteres para nomes de sheets
+                let nomeAba = window.relatorioAtual?.tipo?.replace(/[^a-zA-Z0-9 ]/g, '_') || 'Relatorio';
+                if (nomeAba.length > 31) {
+                    nomeAba = nomeAba.substring(0, 31);
+                }
                 XLSX.utils.book_append_sheet(wb, ws, nomeAba);
                 
                 // Salvar arquivo
@@ -3303,9 +3421,20 @@
             }
         }
 
-        async function carregarUsuarios() {
+        window.carregarUsuarios = async function() {
             try {
-                console.log('Carregando usuários...');
+                const token = localStorage.getItem('token');
+                console.log('🔍 DEBUG - carregarUsuarios() chamada');
+                console.log('   Token existe:', !!token);
+                
+                if (!token) {
+                    console.error('❌ Token não encontrado');
+                    alert('Sessão expirada. Faça login novamente.');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                console.log('✅ Carregando usuários da API...');
                 const response = await fetch('/api/usuarios', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -3375,11 +3504,12 @@
                 `;
             } catch (error) {
                 console.error('Erro ao carregar usuários:', error);
-                document.getElementById('usuariosLista').innerHTML = `<p style="color: red;">Erro ao carregar usuários: ${error.message}</p>`;
+                const errorMsg = Sanitizer.escapeHtml(error.message);
+                document.getElementById('usuariosLista').innerHTML = `<p style="color: red;">Erro ao carregar usuários: ${errorMsg}</p>`;
             }
         }
 
-        async function mostrarModalNovoUsuario(button) {
+        window.mostrarModalNovoUsuario = async function(button) {
             document.getElementById('modalNovoUsuario').style.display = 'block';
             
             // Limpar campos
@@ -3464,14 +3594,14 @@
             return senha;
         }
         
-        function fecharModalNovoUsuario() {
+        window.fecharModalNovoUsuario = function() {
             document.getElementById('modalNovoUsuario').style.display = 'none';
         }
 
         // Variável global para armazenar dados do usuário sendo editado
         let usuarioEditandoTipo = null;
 
-        function editarTipoUsuario(id, nome, tipoAtual) {
+        window.editarTipoUsuario = function(id, nome, tipoAtual) {
             usuarioEditandoTipo = { id, nome, tipoAtual };
             
             // Preencher dados no modal
@@ -3490,12 +3620,12 @@
             document.getElementById('modalEditarTipoUsuario').style.display = 'block';
         }
 
-        function fecharModalEditarTipoUsuario() {
+        window.fecharModalEditarTipoUsuario = function() {
             document.getElementById('modalEditarTipoUsuario').style.display = 'none';
             usuarioEditandoTipo = null;
         }
 
-        async function salvarTipoUsuario() {
+        window.salvarTipoUsuario = async function() {
             if (!usuarioEditandoTipo) {
                 alert('Erro: Dados do usuário não encontrados.');
                 return;
@@ -3537,7 +3667,9 @@
                 if (response.ok) {
                     // Criar notificação de sucesso
                     const notification = document.createElement('div');
-                    notification.innerHTML = `✅ Tipo do usuário "${usuarioEditandoTipo.nome}" alterado para "${novoTipo.toUpperCase()}" com sucesso!`;
+                    const nomeSeguro = Sanitizer.escapeHtml(usuarioEditandoTipo.nome);
+                    const tipoSeguro = Sanitizer.escapeHtml(novoTipo.toUpperCase());
+                    notification.innerHTML = `✅ Tipo do usuário "${nomeSeguro}" alterado para "${tipoSeguro}" com sucesso!`;
                     notification.style.cssText = `
                         position: fixed;
                         top: 20px;
@@ -3580,7 +3712,7 @@
             }
         }
         
-        function salvarNovoUsuario() {
+        window.salvarNovoUsuario = function() {
             const nome = document.getElementById('novoUsuarioNome').value.trim();
             const email = document.getElementById('novoUsuarioEmail').value.trim();
             const senha = document.getElementById('novoUsuarioSenha').value;
@@ -3713,7 +3845,7 @@
         }
 
         // Resetar senha de usuário
-        async function resetarSenhaUsuario(usuarioId, nomeUsuario) {
+        window.resetarSenhaUsuario = async function(usuarioId, nomeUsuario) {
             const confirmacao = confirm(`Tem certeza que deseja resetar a senha do usuário "${nomeUsuario}"?\n\nO usuário precisará fazer login novamente com a nova senha.`);
             
             if (!confirmacao) {
@@ -3746,7 +3878,8 @@
                 if (response.ok) {
                     // Criar notificação de sucesso
                     const notification = document.createElement('div');
-                    notification.innerHTML = `🔑 Senha de "${nomeUsuario}" resetada com sucesso!`;
+                    const nomeSeguro = Sanitizer.escapeHtml(nomeUsuario);
+                    notification.innerHTML = `🔑 Senha de "${nomeSeguro}" resetada com sucesso!`;
                     notification.style.cssText = `
                         position: fixed;
                         top: 20px;
@@ -3788,7 +3921,7 @@
         }
 
         // Ativar/Desativar usuário
-        async function toggleUsuarioStatus(usuarioId, novoStatus, nomeUsuario) {
+        window.toggleUsuarioStatus = async function(usuarioId, novoStatus, nomeUsuario) {
             const acao = novoStatus ? 'ativar' : 'desativar';
             const confirmacao = confirm(`Tem certeza que deseja ${acao} o usuário "${nomeUsuario}"?`);
             
@@ -3828,7 +3961,8 @@
                 if (response.ok) {
                     // Criar notificação de sucesso
                     const notification = document.createElement('div');
-                    notification.innerHTML = `${novoStatus ? '✅' : '🚫'} Usuário "${nomeUsuario}" ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`;
+                    const nomeSeguro = Sanitizer.escapeHtml(nomeUsuario);
+                    notification.innerHTML = `${novoStatus ? '✅' : '🚫'} Usuário "${nomeSeguro}" ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`;
                     notification.style.cssText = `
                         position: fixed;
                         top: 20px;
@@ -3870,7 +4004,7 @@
             }
         }
 
-        async function atualizarPessoa(button) {
+        window.atualizarPessoa = async function(button) {
             if (!pessoaSelecionada) {
                 alert('Nenhuma pessoa selecionada');
                 return;
@@ -3891,6 +4025,7 @@
             };
             
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch(`/api/pessoas/${pessoaSelecionada.id}`, {
                     method: 'PUT',
                     headers: {
@@ -3951,7 +4086,7 @@
             } finally {
                 setButtonLoading(button, false);
             }
-        }
+        };
 
         // Função logout já definida no início do script - removendo duplicata
 
@@ -4218,7 +4353,7 @@
         }
 
         // Analisar duplicatas com estatísticas e progresso
-        async function analisarDuplicatas(button) {
+        window.analisarDuplicatas = async function(button) {
             setButtonLoading(button, true);
             console.log('🔍 Função analisarDuplicatas() chamada');
             
@@ -4408,20 +4543,26 @@
                                 </div>
                                 <div style="padding: 15px;">
                                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-                                        ${grupo.pessoas.map(pessoa => `
+                                        ${grupo.pessoas.map(pessoa => {
+                                            const nome = Sanitizer.escapeHtml(pessoa.nome);
+                                            const cidade = Sanitizer.escapeHtml(pessoa.cidade || 'Cidade não informada');
+                                            const telefone = Sanitizer.escapeHtml(pessoa.telefone || '');
+                                            const email = Sanitizer.escapeHtml(pessoa.email || '');
+                                            return `
                                             <div style="border: 1px solid #e9ecef; border-radius: 5px; padding: 10px;">
-                                                <div style="font-weight: bold; color: #007bff;">${pessoa.nome}</div>
+                                                <div style="font-weight: bold; color: #007bff;">${nome}</div>
                                                 <div style="font-size: 12px; color: #666; margin-top: 5px;">
                                                     ID: ${pessoa.id} | 
                                                     Frequências: ${pessoa.total_frequencias || 0} | 
-                                                    ${pessoa.cidade || 'Cidade não informada'}
+                                                    ${cidade}
                                                 </div>
                                                 <div style="font-size: 11px; color: #999; margin-top: 3px;">
-                                                    ${pessoa.telefone ? `📞 ${pessoa.telefone}` : '📞 Não informado'} | 
-                                                    ${pessoa.email ? `📧 ${pessoa.email}` : '📧 Não informado'}
+                                                    ${telefone ? `📞 ${telefone}` : '📞 Não informado'} | 
+                                                    ${email ? `📧 ${email}` : '📧 Não informado'}
                                                 </div>
                                             </div>
-                                        `).join('')}
+                                        `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -4503,7 +4644,7 @@
         }
         
         // Visualizar detalhes de um grupo
-        async function visualizarGrupo(grupoId, pessoaIds) {
+        window.visualizarGrupo = async function(grupoId, pessoaIds) {
             try {
                 const response = await fetch(`/api/duplicatas/grupo/${grupoId}?pessoaIds=${pessoaIds.join(',')}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -4523,7 +4664,7 @@
         }
         
         // Mostrar modal de mesclagem
-        function mostrarModalMesclagem(dados) {
+        window.mostrarModalMesclagem = function(dados) {
             mesclagem_atual = dados;
             
             // Encontrar pessoa principal e secundárias
@@ -4536,29 +4677,40 @@
                 return;
             }
             
+            const nomePrincipal = Sanitizer.escapeHtml(pessoaPrincipal.nome);
+            const telefonePrincipal = Sanitizer.escapeHtml(pessoaPrincipal.telefone || '');
+            const emailPrincipal = Sanitizer.escapeHtml(pessoaPrincipal.email || '');
+            const cidadePrincipal = Sanitizer.escapeHtml(pessoaPrincipal.cidade || '');
+            
             let html = `
                 <div style="margin-bottom: 20px;">
                     <h4 style="color: #28a745;">✅ Pessoa Principal (será mantida)</h4>
                     <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px;">
-                        <strong>${pessoaPrincipal.nome}</strong> (ID: ${pessoaPrincipal.id})<br>
+                        <strong>${nomePrincipal}</strong> (ID: ${pessoaPrincipal.id})<br>
                         <small>Frequências: ${pessoaPrincipal.total_frequencias || 0}</small><br>
-                        ${pessoaPrincipal.telefone ? `<small>📞 ${pessoaPrincipal.telefone}</small><br>` : ''}
-                        ${pessoaPrincipal.email ? `<small>📧 ${pessoaPrincipal.email}</small><br>` : ''}
-                        ${pessoaPrincipal.cpf ? `<small>🆔 ${pessoaPrincipal.cpf}</small>` : ''}
+                        ${telefonePrincipal ? `<small>📞 ${telefonePrincipal}</small><br>` : ''}
+                        ${emailPrincipal ? `<small>📧 ${emailPrincipal}</small><br>` : ''}
+                        ${cidadePrincipal ? `<small>📍 ${cidadePrincipal}</small>` : ''}
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
                     <h4 style="color: #dc3545;">❌ Pessoas que serão removidas</h4>
-                    ${pessoasSecundarias.map(pessoa => `
+                    ${pessoasSecundarias.map(pessoa => {
+                        const nome = Sanitizer.escapeHtml(pessoa.nome);
+                        const telefone = Sanitizer.escapeHtml(pessoa.telefone || '');
+                        const email = Sanitizer.escapeHtml(pessoa.email || '');
+                        const cidade = Sanitizer.escapeHtml(pessoa.cidade || '');
+                        return `
                         <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin-bottom: 5px;">
-                            <strong>${pessoa.nome}</strong> (ID: ${pessoa.id})<br>
+                            <strong>${nome}</strong> (ID: ${pessoa.id})<br>
                             <small>Frequências: ${pessoa.total_frequencias || 0} (serão transferidas)</small><br>
-                            ${pessoa.telefone ? `<small>📞 ${pessoa.telefone}</small><br>` : ''}
-                            ${pessoa.email ? `<small>📧 ${pessoa.email}</small><br>` : ''}
-                            ${pessoa.cpf ? `<small>🆔 ${pessoa.cpf}</small>` : ''}
+                            ${telefone ? `<small>📞 ${telefone}</small><br>` : ''}
+                            ${email ? `<small>📧 ${email}</small><br>` : ''}
+                            ${cidade ? `<small>📍 ${cidade}</small>` : ''}
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
                 
                 ${dados.campos_conflitantes && dados.campos_conflitantes.length > 0 ? `
@@ -4630,13 +4782,13 @@
         }
         
         // Fechar modal de mesclagem
-        function fecharModalMesclagem() {
+        window.fecharModalMesclagem = function() {
             document.getElementById('modalMesclagem').style.display = 'none';
             mesclagem_atual = null;
         }
         
         // Confirmar mesclagem com sistema de progresso otimizado
-        async function confirmarMesclagem() {
+        window.confirmarMesclagem = async function() {
             if (!mesclagem_atual) return;
             
             const pessoasSecundarias = mesclagem_atual.pessoas.filter(p => p.id != mesclagem_atual.pessoa_principal_sugerida);
@@ -4772,7 +4924,7 @@
         // ===== FUNÇÕES DE CADASTRO =====
         
         // Função para cadastrar nova pessoa
-        async function cadastrarPessoa(button) {
+        window.cadastrarPessoa = async function(button) {
             const resultado = document.getElementById('cadastroResultado');
             
             // Validar campos obrigatórios
@@ -4853,12 +5005,14 @@
                         message: 'Pessoa cadastrada com sucesso!' 
                     });
                     
+                    const nomeSeguro = Sanitizer.escapeHtml(data.pessoa.nome);
+                    const cidadeSegura = Sanitizer.escapeHtml(data.pessoa.cidade || 'Não informada');
                     resultado.innerHTML = `
                         <div style="color: green; padding: 15px; background: #e6ffe6; border-radius: 5px; margin-top: 10px;">
                             <h4>✅ Cadastro realizado com sucesso!</h4>
                             <p><strong>ID:</strong> ${data.pessoa.id}</p>
-                            <p><strong>Nome:</strong> ${data.pessoa.nome}</p>
-                            <p><strong>Cidade:</strong> ${data.pessoa.cidade || 'Não informada'}</p>
+                            <p><strong>Nome:</strong> ${nomeSeguro}</p>
+                            <p><strong>Cidade:</strong> ${cidadeSegura}</p>
                         </div>
                     `;
                     
@@ -4877,17 +5031,19 @@
                         mensagemErro = 'CPF já cadastrado no sistema!';
                     }
                     
-                    resultado.innerHTML = `<div style="color: red; padding: 10px; background: #ffe6e6; border-radius: 5px;">❌ ${mensagemErro}</div>`;
+                    const msgSegura = Sanitizer.escapeHtml(mensagemErro);
+                    resultado.innerHTML = `<div style="color: red; padding: 10px; background: #ffe6e6; border-radius: 5px;">❌ ${msgSegura}</div>`;
                 }
             } catch (error) {
                 progressTimer.remove(timerId);
                 console.error('Erro ao cadastrar pessoa:', error);
-                resultado.innerHTML = `<div style="color: red; padding: 10px; background: #ffe6e6; border-radius: 5px;">❌ Erro de conexão: ${error.message}</div>`;
+                const errorMsg = Sanitizer.escapeHtml(error.message);
+                resultado.innerHTML = `<div style="color: red; padding: 10px; background: #ffe6e6; border-radius: 5px;">❌ Erro de conexão: ${errorMsg}</div>`;
             }
         }
         
         // Função para limpar formulário de cadastro
-        function limparFormularioCadastro() {
+        window.limparFormularioCadastro = function() {
             document.getElementById('cadastroNome').value = '';
             document.getElementById('cadastroCpf').value = '';
             document.getElementById('cadastroNascimento').value = '';
@@ -5077,18 +5233,22 @@
             html += '</tr></thead><tbody>';
             
             voluntarios.forEach(voluntario => {
+                const nome = Sanitizer.escapeHtml(voluntario.nome);
+                const cpf = Sanitizer.escapeHtml(voluntario.cpf || '-');
+                const email = Sanitizer.escapeHtml(voluntario.email || '-');
+                
                 html += '<tr>';
-                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.nome}</td>`;
-                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.cpf || '-'}</td>`;
-                html += `<td style="padding: 10px; border: 1px solid #ddd;">${voluntario.email || '-'}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${nome}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${cpf}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${email}</td>`;
                 
                 let localizacao = '';
                 if (voluntario.cidade && voluntario.estado) {
-                    localizacao = `${voluntario.cidade}/${voluntario.estado}`;
+                    localizacao = Sanitizer.escapeHtml(`${voluntario.cidade}/${voluntario.estado}`);
                 } else if (voluntario.cidade) {
-                    localizacao = voluntario.cidade;
+                    localizacao = Sanitizer.escapeHtml(voluntario.cidade);
                 } else if (voluntario.estado) {
-                    localizacao = voluntario.estado;
+                    localizacao = Sanitizer.escapeHtml(voluntario.estado);
                 } else {
                     localizacao = '-';
                 }
@@ -5096,7 +5256,7 @@
                 
                 html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">';
                 html += `<button onclick="editarVoluntario(${voluntario.id})" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px;">✏️ Editar</button>`;
-                html += `<button onclick="excluirVoluntario(${voluntario.id}, '${voluntario.nome}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">🗑️ Excluir</button>`;
+                html += `<button onclick="excluirVoluntario(${voluntario.id}, '${nome}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">🗑️ Excluir</button>`;
                 html += '</td>';
                 html += '</tr>';
             });
@@ -5106,13 +5266,13 @@
         }
 
         // Buscar voluntários
-        function buscarVoluntarios() {
+        window.buscarVoluntarios = function() {
             const busca = document.getElementById('buscaVoluntarios').value.trim();
             carregarVoluntarios(busca);
         }
 
         // Mostrar modal de novo voluntário
-        function mostrarModalNovoVoluntario() {
+        window.mostrarModalNovoVoluntario = function() {
             document.getElementById('modalNovoVoluntario').style.display = 'block';
             document.getElementById('formNovoVoluntario').reset();
             
@@ -5206,6 +5366,10 @@
             
             try {
                 const token = localStorage.getItem('token');
+                
+                // Log para debug
+                console.log('📤 Enviando dados do voluntário:', voluntarioData);
+                
                 const response = await fetch('/api/voluntarios', {
                     method: 'POST',
                     headers: {
@@ -5233,7 +5397,34 @@
                     fecharModalVoluntario();
                     carregarVoluntarios();
                 } else {
-                    alert('❌ Erro: ' + data.error);
+                    // Log do erro completo
+                    console.error('❌ Erro do servidor:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        data: data
+                    });
+                    
+                    // Mensagem de erro mais detalhada
+                    let mensagemErro = '❌ Erro ao cadastrar voluntário:\n\n';
+                    
+                    if (response.status === 409) {
+                        mensagemErro += '⚠️ ' + data.error + '\n\n';
+                        
+                        // Exibir detalhes se disponível
+                        if (data.detalhes) {
+                            mensagemErro += data.detalhes + '\n\n';
+                        }
+                        
+                        if (data.error.includes('CPF')) {
+                            mensagemErro += '💡 Dica: Verifique se o voluntário já existe na lista.';
+                        } else if (data.error.includes('mail')) {
+                            mensagemErro += '💡 Dica: Use a busca para verificar se o voluntário já está cadastrado.';
+                        }
+                    } else {
+                        mensagemErro += data.error || 'Erro desconhecido';
+                    }
+                    
+                    alert(mensagemErro);
                 }
                 
             } catch (error) {
@@ -5243,7 +5434,7 @@
         });
 
         // Editar voluntário
-        async function editarVoluntario(id) {
+        window.editarVoluntario = async function(id) {
             try {
                 const token = localStorage.getItem('token');
                 const response = await fetch(`/api/voluntarios/${id}`, {
@@ -5288,7 +5479,7 @@
         }
 
         // Fechar modal de editar voluntário
-        function fecharModalEditarVoluntario() {
+        window.fecharModalEditarVoluntario = function() {
             document.getElementById('modalEditarVoluntario').style.display = 'none';
         }
 
@@ -5335,7 +5526,7 @@
         });
 
         // Excluir voluntário
-        async function excluirVoluntario(id, nome) {
+        window.excluirVoluntario = async function(id, nome) {
             if (!confirm(`Tem certeza que deseja excluir o voluntário "${nome}"?\n\nEsta ação não pode ser desfeita.`)) {
                 return;
             }
@@ -5369,7 +5560,7 @@
         let voluntarioSelecionado = null;
 
         // Buscar voluntário para frequência
-        async function buscarVoluntarioFrequencia() {
+        window.buscarVoluntarioFrequencia = async function() {
             const termo = document.getElementById('buscaVoluntario').value.trim();
             const resultado = document.getElementById('resultadoBuscaVoluntario');
             
@@ -5377,6 +5568,9 @@
                 resultado.innerHTML = '<p style="color: #666;">Digite pelo menos 2 caracteres para buscar</p>';
                 return;
             }
+            
+            // Mostrar indicador de loading
+            resultado.innerHTML = '<p style="color: #007bff; padding: 10px;">🔍 Buscando voluntários...</p>';
             
             try {
                 const token = localStorage.getItem('token');
@@ -5395,11 +5589,14 @@
                 if (data.voluntarios && data.voluntarios.length > 0) {
                     let html = '<div style="max-height: 200px; overflow-y: auto;">';
                     data.voluntarios.forEach((voluntario, index) => {
+                        const nome = Sanitizer.escapeHtml(voluntario.nome);
+                        const cpf = Sanitizer.escapeHtml(voluntario.cpf || 'Não informado');
+                        const email = Sanitizer.escapeHtml(voluntario.email || 'Não informado');
                         html += `
                             <div class="voluntario-resultado" data-index="${index}" 
                                  style="padding: 10px; border: 1px solid #ddd; margin-bottom: 5px; cursor: pointer; background: white; border-radius: 4px;">
-                                <strong>${voluntario.nome}</strong><br>
-                                <small>CPF: ${voluntario.cpf || 'Não informado'} | Email: ${voluntario.email || 'Não informado'}</small>
+                                <strong>${nome}</strong><br>
+                                <small>CPF: ${cpf} | Email: ${email}</small>
                             </div>
                         `;
                     });
@@ -5434,6 +5631,54 @@
             }
         }
 
+        // Debounce helper function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Configurar busca automática ao digitar (com debounce de 500ms)
+        const inputBuscaVoluntario = document.getElementById('buscaVoluntario');
+        if (inputBuscaVoluntario) {
+            const debouncedSearch = debounce(() => {
+                const termo = inputBuscaVoluntario.value.trim();
+                const resultado = document.getElementById('resultadoBuscaVoluntario');
+                
+                // Limpar resultados se campo estiver vazio
+                if (termo.length === 0) {
+                    resultado.innerHTML = '';
+                    return;
+                }
+                
+                // Executar busca
+                if (termo.length >= 2) {
+                    buscarVoluntarioFrequencia();
+                } else {
+                    resultado.innerHTML = '<p style="color: #666; padding: 10px;">Digite pelo menos 2 caracteres para buscar...</p>';
+                }
+            }, 500); // Aguarda 500ms após o usuário parar de digitar
+            
+            // Event listeners
+            inputBuscaVoluntario.addEventListener('input', debouncedSearch);
+            
+            // Também permite buscar com Enter
+            inputBuscaVoluntario.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    buscarVoluntarioFrequencia();
+                }
+            });
+            
+            console.log('✅ Busca automática de voluntário configurada');
+        }
+
         // Selecionar voluntário para frequência
         function selecionarVoluntarioFrequencia(index) {
             if (!window.voluntariosEncontrados || !window.voluntariosEncontrados[index]) {
@@ -5462,7 +5707,7 @@
         }
 
         // Registrar frequência de voluntário
-        async function registrarFrequenciaVoluntario() {
+        window.registrarFrequenciaVoluntario = async function() {
             if (!voluntarioSelecionado) {
                 alert('Selecione um voluntário');
                 return;
@@ -5529,7 +5774,7 @@
         }
 
         // Cancelar registro de frequência
-        function cancelarFrequenciaVoluntario() {
+        window.cancelarFrequenciaVoluntario = function() {
             voluntarioSelecionado = null;
             document.getElementById('formularioFrequenciaVoluntario').style.display = 'none';
             document.getElementById('buscaVoluntario').value = '';
@@ -5676,6 +5921,208 @@
             // Carregar voluntários para o filtro do relatório
             carregarVoluntariosParaFiltro();
         });
+
+        // ========== FUNÇÕES DE BACKUP/RESTORE ==========
+        
+        // Criar novo backup
+        window.criarBackup = async function(button) {
+            if (!confirm('Deseja criar um backup completo do banco de dados?')) {
+                return;
+            }
+            
+            setButtonLoading(button, true);
+            
+            try {
+                const response = await fetch('/api/backups', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'create' })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro ao criar backup');
+                }
+                
+                const data = await response.json();
+                
+                alert(`✅ Backup criado com sucesso!\n\nArquivo: ${data.filename}\nTamanho: ${(data.size / 1024 / 1024).toFixed(2)} MB`);
+                
+                // Atualizar lista de backups
+                listarBackups();
+                
+            } catch (error) {
+                console.error('Erro ao criar backup:', error);
+                alert('❌ Erro ao criar backup: ' + error.message);
+            } finally {
+                setButtonLoading(button, false);
+            }
+        };
+        
+        // Listar backups disponíveis
+        window.listarBackups = async function(button) {
+            if (button) setButtonLoading(button, true);
+            
+            try {
+                const response = await fetch('/api/backups', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao listar backups');
+                }
+                
+                const data = await response.json();
+                const container = document.getElementById('listaBackups');
+                
+                if (!data.backups || data.backups.length === 0) {
+                    container.innerHTML = '<p style="color: #666; text-align: center;">Nenhum backup encontrado</p>';
+                    return;
+                }
+                
+                let html = '<div style="display: grid; gap: 10px;">';
+                
+                data.backups.forEach(backup => {
+                    // API retorna: nome, tamanho, tamanho_formatado, data_criacao
+                    const tamanhoMB = backup.tamanho_formatado || ((backup.tamanho / 1024 / 1024).toFixed(2) + ' MB');
+                    const dataFormatada = new Date(backup.data_criacao).toLocaleString('pt-BR');
+                    const nomeArquivo = backup.nome;
+                    
+                    html += `
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <strong style="color: #007bff;">📦 ${nomeArquivo}</strong>
+                                    <p style="margin: 5px 0; font-size: 14px; color: #666;">
+                                        📅 ${dataFormatada} • 💾 ${tamanhoMB}
+                                    </p>
+                                </div>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="downloadBackup('${nomeArquivo}')" 
+                                            style="background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                                        ⬇️ Download
+                                    </button>
+                                    <button onclick="deletarBackup('${nomeArquivo}')" 
+                                            style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                                        🗑️ Excluir
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erro ao listar backups:', error);
+                document.getElementById('listaBackups').innerHTML = 
+                    '<p style="color: #dc3545; text-align: center;">❌ Erro ao carregar lista de backups</p>';
+            } finally {
+                if (button) setButtonLoading(button, false);
+            }
+        };
+        
+        // Download de backup
+        window.downloadBackup = function(filename) {
+            window.location.href = `/api/backups/download/${filename}?token=${token}`;
+        };
+        
+        // Deletar backup
+        window.deletarBackup = async function(filename) {
+            if (!confirm(`Tem certeza que deseja excluir o backup:\n\n${filename}\n\nEsta ação não pode ser desfeita!`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/backups/${filename}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro ao deletar backup');
+                }
+                
+                alert('✅ Backup excluído com sucesso!');
+                listarBackups();
+                
+            } catch (error) {
+                console.error('Erro ao deletar backup:', error);
+                alert('❌ Erro ao deletar backup: ' + error.message);
+            }
+        };
+        
+        // Restaurar backup
+        window.restaurarBackup = async function(button) {
+            const fileInput = document.getElementById('arquivoBackup');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('⚠️ Por favor, selecione um arquivo de backup (.sql)');
+                return;
+            }
+            
+            if (!file.name.endsWith('.sql')) {
+                alert('⚠️ O arquivo deve ter extensão .sql');
+                return;
+            }
+            
+            const confirmacao = confirm(
+                '⚠️ ATENÇÃO! OPERAÇÃO DESTRUTIVA!\n\n' +
+                'Restaurar este backup irá:\n' +
+                '• Apagar TODOS os dados atuais do banco\n' +
+                '• Substituir pelos dados do backup\n' +
+                '• Esta operação NÃO PODE ser desfeita!\n\n' +
+                'Tem ABSOLUTA CERTEZA que deseja continuar?'
+            );
+            
+            if (!confirmacao) {
+                return;
+            }
+            
+            setButtonLoading(button, true);
+            
+            try {
+                const formData = new FormData();
+                formData.append('backup', file);
+                
+                const response = await fetch('/api/backups/restore', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erro ao restaurar backup');
+                }
+                
+                alert('✅ Backup restaurado com sucesso!\n\nVocê será redirecionado para a página de login.');
+                
+                // Limpar sessão e redirecionar para login
+                localStorage.clear();
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Erro ao restaurar backup:', error);
+                alert('❌ Erro ao restaurar backup: ' + error.message);
+                setButtonLoading(button, false);
+            }
+        };
     </script>
 </body>
 </html>

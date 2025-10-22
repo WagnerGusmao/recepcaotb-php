@@ -6,19 +6,27 @@
  * Acesso restrito: Apenas administradores e líderes
  */
 
+// Iniciar buffer de saída para capturar qualquer output indesejado
+ob_start();
+
+// Configurar exibição de erros para ambiente de produção
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Configurar timezone
+require_once __DIR__ . '/../config/timezone.php';
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../classes/Auth.php';
 
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// Configurar CORS com política restritiva
+require_once __DIR__ . '/../config/cors.php';
+CorsHandler::handle();
 
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Limpar qualquer output anterior e definir header
+ob_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 // Verificar autenticação
 $auth = new Auth();
@@ -31,7 +39,8 @@ if (!$user) {
 }
 
 // Verificar permissões - apenas administradores e líderes
-if (!in_array($user['tipo'], ['administrador', 'lider'])) {
+// Aceitar tanto 'admin' quanto 'administrador' por compatibilidade
+if (!in_array($user['tipo'], ['admin', 'administrador', 'lider'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Acesso negado. Apenas administradores e líderes podem lançar frequência de voluntários.']);
     exit;
